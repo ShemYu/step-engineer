@@ -18,20 +18,47 @@ Step Engineer 是**專為 Step-5-Preview 設計的可重用 agent harness**，�
 
 ## Harness、Step 與 orchestrator 的分工
 
+### Harness 做什麼，為什麼需要它？
+
+Step 提出下一個修改方向；harness 把這些提案變成有範圍、可量測的搜尋過程：管理可修改的狀態、回傳執行結果，並判斷保存的候選是否符合呼叫端設定的驗收條件。開發者建構自己的 MCP／CLI 時，重用的就是這一層執行機制。
+
 ```mermaid
 flowchart TD
-    O["Orchestrator：GPT、Grok、Claude 或其他 agent"] -->|"任務、限制、評分器、預算"| I["現成或自訂 MCP／CLI／工具介面"]
-    I --> J["JobService：來源範圍與工作生命週期"]
-    J --> H["Harness：副本、預算、候選選擇"]
-    H -->|"上下文與實驗回饋"| S["Step-5-Preview API"]
-    S -->|"提出修改與工具呼叫"| H
-    H --> E["本機評測：固定檢查與 benchmark"]
-    E -->|"量測結果"| H
-    H --> R["已保存最佳版本：最終驗證、patch、指標、用量"]
-    R -->|"審查與採用"| O
+    O["Orchestrator 提供任務與驗收標準"] -->|"MCP／CLI／工具介面"| C
+    subgraph H["Step Engineer harness：可重用的執行與驗證機制"]
+        C["1. 檢查範圍、建立檔案副本<br/>保留原始專案"] --> B["2. 量測未修改版本<br/>建立可比較的基準"]
+        B --> L["3. 分派允許的工具<br/>控制讀檔、修改與執行"]
+        L -->|"evaluate_candidate"| E["4. 執行既定檢查與 benchmark<br/>量測是否有效、是否改善"]
+        E --> K["5. 保存合格的最佳候選<br/>保住已量測的進展"]
+        K -->|"回傳結果，繼續下一次嘗試"| L
+        L -->|"迭代正常結束"| V["6. 重驗最佳副本、輸出證據<br/>驗收結果，不採用最後一份草稿"]
+        K -.->|"已保存的副本"| V
+        G["全程限制：時間、tokens、工具、估算費用<br/>停止條件與最終驗證時間保留"] -.-> L
+    end
+    L -->|"上下文與工具結果"| S["Step-5-Preview API"]
+    S -->|"提出修改與工具呼叫"| L
+    V --> R["Orchestrator 審查 patch、指標、用量與停止原因"]
 ```
 
-Step 負責提出解法與根據回饋調整；harness 負責執行邊界、預算、驗證及保存證據；orchestrator 負責挑選任務、設計評分與採用結果。模型提出工具呼叫後，仍由有檔案權限的本機 host 執行。
+圖中呈現正常優化流程。若基準版本不合格，就不進入模型迭代；取消或執行錯誤會記錄停止結果，不保證完成最終驗證或產生已接受的 patch。
+
+| Harness 的機制 | 為什麼需要 | 對應實作 |
+| --- | --- | --- |
+| 檢查工作契約、複製指定檔案、限制可修改範圍 | 讓每次試驗有清楚邊界，並保留原始專案 | [JobSpec](../src/step_engineer/models.py)、[Workspace](../src/step_engineer/workspace.py) |
+| 量測 baseline，重複測量候選版本 | 建立比較起點，降低單次偶然較快造成的誤判 | [Harness.measure](../src/step_engineer/harness.py) |
+| 分派固定工具，在 sandbox 執行提供的命令 | 將模型請求轉為受控操作，限制檔案、網路與輸出 | [Harness.dispatch](../src/step_engineer/harness.py)、[runner](../src/step_engineer/runner.py) |
+| 把實際工具結果回傳 Step | 讓下一次修改依據觀察到的失敗與分數調整 | [Harness.optimize](../src/step_engineer/harness.py)、[Step client](../src/step_engineer/provider.py) |
+| 僅保存合格且更好的候選 | 後續嘗試退步或尚未測試時，仍保有已量測的進展 | [Harness.evaluate](../src/step_engineer/harness.py)、[Workspace.save_best](../src/step_engineer/workspace.py) |
+| 限制迭代、為最終驗證保留時間 | 讓探索有停止條件，留下檢查成果的空間 | [Harness.optimize](../src/step_engineer/harness.py) |
+| 從最佳版本建立新副本重驗，輸出產物 | 讓呼叫端檢查實際修改、量測、用量與驗收決定 | [Harness.verify_final](../src/step_engineer/harness.py)、[Harness.run](../src/step_engineer/harness.py) |
+
+**責任邊界：**目標、測試、benchmark、門檻，以及可選的獨立最終檢查，都是 orchestrator 提供。Harness 執行這些既定評測並記錄當次工作的證據；它不負責設計測試，也不是跨模型比較的評測平台。Step 提出修改並依回饋調整，orchestrator 審查後決定是否採用。
+
+合格且更好的量測結果會自動保存為 `best`；還原工作中的候選版本則需要呼叫 `restore_best`。最終驗證使用已保存 `best` 的新副本，通過驗收後 `accepted.patch` 才包含修改。沒有另設 `final_checks` 時，結果會標示 `independently_checked=false`。估算費用上限和時間保留機制不保證精確帳單或最終檢查一定成功。
+
+### MCP／CLI 放在哪一層？
+
+MCP 與 CLI 是這套執行機制的入口。內建 CLI 直接使用 `Harness`；MCP 與文件中的自訂 wrapper 使用 `JobService`，增加允許的來源目錄、背景工作、狀態查詢與取消管理。呼叫端負責程序／session 的生命週期。雲端模型提出工具呼叫後，仍由本機 host 執行，並不直接存取電腦。自訂方式見 [MCP／CLI 範例](integrations.md#build-your-own-cli-or-mcp)。
 
 | 你要建構的介面 | 可重用的部分 |
 | --- | --- |

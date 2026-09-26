@@ -1,6 +1,6 @@
 # Step Engineer
 
-A reusable, **Step-5-Preview-specific agent harness** for optimization under explicit constraints and measurable feedback. Use its ready-made MCP server and CLI, or build your own interfaces around the same job service. GPT, Grok, Claude, or another agent can orchestrate the work while Step proposes and tests improvements.
+A reusable, **Step-5-Preview-specific agent harness** for optimization under explicit constraints and measurable feedback. Use its ready-made MCP server and CLI, or build your own interfaces around its reusable Python components. GPT, Grok, Claude, or another agent can orchestrate the work while Step proposes and tests improvements.
 
 The current implementation works on local source-file tasks: it edits an isolated copy, measures candidates against fixed checks, preserves the best qualifying version, and returns a patch with verification evidence. Engineering optimization is the first supported application of the harness.
 
@@ -20,20 +20,65 @@ Our own live case reduced fresh nine-pose composition time by **10.57%**, with i
 
 ## How other agents use it
 
+### What the harness does, and why it exists
+
+Step proposes the next change. The harness turns those proposals into a bounded,
+measured search: it controls the editable state, supplies execution feedback, and
+decides whether the saved result meets the caller's acceptance criteria. This
+runtime is the part developers reuse behind their MCP or CLI.
+
 ```mermaid
 flowchart TD
-    O["Orchestrator: GPT, Grok, Claude, or another agent"] -->|"Task, constraints, evaluator, budget"| I["Built-in or custom MCP / CLI / tool adapter"]
-    I --> J["JobService: source boundaries and job lifecycle"]
-    J --> H["Harness: snapshots, budgets, candidate selection"]
-    H -->|"Context and feedback"| S["Step-5-Preview API"]
-    S -->|"Proposed edits and tool calls"| H
-    H --> E["Local evaluator: protected checks and benchmark"]
-    E -->|"Measured outcomes"| H
-    H --> R["Saved best: final validation, patch, metrics, usage"]
-    R -->|"Review and adoption"| O
+    O["Orchestrator supplies task and acceptance criteria"] -->|"MCP / CLI / tool adapter"| C
+    subgraph H["Step Engineer harness: reusable execution and validation"]
+        C["1. Validate scope and snapshot files<br/>Keep the original project intact"] --> B["2. Measure the unchanged baseline<br/>Establish the comparison"]
+        B --> L["3. Dispatch permitted tools<br/>Control reads, edits, and execution"]
+        L -->|"evaluate_candidate"| E["4. Run supplied checks and benchmarks<br/>Measure validity and improvement"]
+        E --> K["5. Save the best feasible candidate<br/>Keep measured progress"]
+        K -->|"Feedback for the next attempt"| L
+        L -->|"Normal loop stop"| V["6. Revalidate saved best; write evidence<br/>Accept a checked result, not the last draft"]
+        K -.->|"Saved snapshot"| V
+        G["Across the loop: time, tokens, tools, estimated cost<br/>Stop limits and final-validation time reserve"] -.-> L
+    end
+    L -->|"Context and tool results"| S["Step-5-Preview API"]
+    S -->|"Proposed edits and tool calls"| L
+    V --> R["Orchestrator reviews patch, metrics, usage, and stop reason"]
 ```
 
-**Step** proposes changes and reacts to feedback. **The harness** enforces the contract and records evidence. **The orchestrator** owns task selection, evaluation quality, and adoption. The arrows describe a local host executing tool calls; cloud models do not directly access your filesystem.
+The diagram shows the normal optimization path. An invalid baseline stops before
+model iteration. Cancellation or an execution error records a termination result;
+it does not guarantee final validation or an accepted patch.
+
+| Harness mechanism | Why it is needed | Implementation |
+| --- | --- | --- |
+| Validate the job, snapshot selected files, restrict edits | Give every trial a defined scope and preserve the original project | [JobSpec](src/step_engineer/models.py), [Workspace](src/step_engineer/workspace.py) |
+| Measure a baseline and repeated candidate runs | Establish a comparable starting point; reduce reliance on a single favorable timing | [Harness.measure](src/step_engineer/harness.py) |
+| Dispatch a fixed set of tools and sandbox supplied commands | Turn model requests into controlled execution with file, network, and output limits | [Harness.dispatch](src/step_engineer/harness.py), [runner](src/step_engineer/runner.py) |
+| Return measured tool feedback to Step | Let the next attempt respond to observed failures and scores | [Harness.optimize](src/step_engineer/harness.py), [Step client](src/step_engineer/provider.py) |
+| Save only a better feasible candidate | Preserve measured progress when later attempts regress or remain untested | [Harness.evaluate](src/step_engineer/harness.py), [Workspace.save_best](src/step_engineer/workspace.py) |
+| Bound iteration and reserve time for final checks | Give exploratory work a stopping policy and leave room to verify the result | [Harness.optimize](src/step_engineer/harness.py) |
+| Recheck a fresh copy of saved best and write artifacts | Let the caller inspect the actual candidate, measurements, usage, and acceptance decision | [Harness.verify_final](src/step_engineer/harness.py), [Harness.run](src/step_engineer/harness.py) |
+
+**Ownership:** the orchestrator supplies the objective, checks, benchmark, thresholds,
+and optional independent final checks. The harness executes these supplied evaluators
+and records runtime evidence; it does not design the tests or constitute a cross-model
+evaluation platform. Step proposes changes and reacts to feedback. The orchestrator
+reviews the result and decides whether to apply it.
+
+Saving `best` is automatic after a qualifying measurement; restoring the working
+candidate requires the `restore_best` tool. Final validation uses a fresh copy of
+saved `best`, and `accepted.patch` contains changes only after acceptance. Without
+separate `final_checks`, the result reports `independently_checked=false`. Estimated
+cost limits and the validation-time reserve do not guarantee an exact bill or a
+successful final check.
+
+### Where MCP and CLI fit
+
+MCP and CLI are entry points to this runtime. The built-in CLI calls `Harness`
+directly; MCP and the documented custom wrappers use `JobService` for allowed source
+roots, background jobs, polling, and cancellation. The caller owns the process/session
+lifetime. Cloud models issue tool calls through a local host; they do not directly
+access your filesystem. See [custom interfaces](docs/integrations.md#build-your-own-cli-or-mcp).
 
 | Your starting point | Reuse this layer |
 | --- | --- |
