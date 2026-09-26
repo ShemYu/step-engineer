@@ -436,6 +436,11 @@ class Harness:
                     }
                 )
                 self.event("tool_completed", name=name, attempt=self.tool_calls)
+                # Stagnation is measured by completed evaluations only; stop as soon as
+                # the limit is reached, before any further exploration or paid request.
+                if self.no_improvement >= budget.max_no_improvement:
+                    self.stop_reason = "no_improvement_limit"
+                    return
                 if self.stop_reason == "model_finished":
                     return
         self.stop_reason = "model_turn_budget"
