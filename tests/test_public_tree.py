@@ -9,6 +9,8 @@ import pytest
 SCANNER = Path(__file__).resolve().parents[1] / "tools" / "check_public_tree.py"
 MODULE = runpy.run_path(str(SCANNER))
 audit = MODULE["audit"]
+path_category = MODULE["_path_category"]
+content_categories = MODULE["_content_categories"]
 
 
 def git(root: Path, *args: str) -> None:
@@ -52,9 +54,11 @@ def test_environment_example_rejects_even_placeholder_key_values(repository, val
 
 
 @pytest.mark.parametrize("value", ["", "# configure locally", '""', "'' # configure locally"])
-def test_environment_example_allows_only_empty_secret_values(repository, value):
-    stage(repository, ".env.example", "STEP_" + "API_KEY" + "=" + value + "\n")
-    assert audit(repository) == []
+def test_environment_example_allows_only_empty_secret_values(value):
+    # Check the path and content classifiers directly for each empty value.
+    raw = ("STEP_" + "API_KEY" + "=" + value + "\n").encode()
+    assert path_category(".env.example") is None
+    assert content_categories(raw, ".env.example") == set()
 
 
 @pytest.mark.parametrize("name", [
@@ -64,9 +68,9 @@ def test_environment_example_allows_only_empty_secret_values(repository, value):
     "verification/result.json",
     "docs/video.mov", "backup.tar.gz", "credentials.json", "private.key",
 ])
-def test_forbidden_staged_paths(repository, name):
-    stage(repository, name)
-    assert audit(repository)
+def test_forbidden_staged_paths(name):
+    # Check path classification; the separate integration test checks read ordering.
+    assert path_category(name) is not None
 
 
 def test_forbidden_environment_is_rejected_before_read(repository, monkeypatch):
@@ -108,9 +112,8 @@ def test_unstaged_secret_in_tracked_file_is_found(repository):
     "~" + "/personal-project",
     "C:" + "\\Users\\sample-person\\project",
 ])
-def test_private_home_paths(repository, private_path):
-    stage(repository, "notes.txt", private_path)
-    assert "private-home-path" in categories(repository)
+def test_private_home_paths(private_path):
+    assert "private-home-path" in content_categories(private_path.encode(), "notes.txt")
 
 
 @pytest.mark.parametrize("value", [
@@ -121,9 +124,10 @@ def test_private_home_paths(repository, private_path):
     "-----BEGIN " + "PRIVATE KEY-----",
     "SERVICE_" + "API_KEY=" + "arbitrary-assignment-value",
 ])
-def test_credential_signatures(repository, value):
-    stage(repository, "notes.txt", value)
-    assert categories(repository) & {"credential-pattern", "credential-assignment"}
+def test_credential_signatures(value):
+    assert content_categories(value.encode(), "notes.txt") & {
+        "credential-pattern", "credential-assignment",
+    }
 
 
 def test_python_credential_expressions_are_not_literal_secrets(repository):
@@ -152,10 +156,10 @@ def test_python_credential_literals_still_fail(repository, form):
     assert "credential-assignment" in categories(repository)
 
 
-def test_python_placeholder_never_masks_provider_token_signature(repository):
+def test_python_placeholder_never_masks_provider_token_signature():
     value = "example_" + synthetic_token()
-    stage(repository, "literals.py", "api" + f"_key = {value!r}\n")
-    assert "credential-pattern" in categories(repository)
+    source = "api" + f"_key = {value!r}\n"
+    assert "credential-pattern" in content_categories(source.encode(), "literals.py")
 
 
 def test_binary_and_non_utf8_data(repository):

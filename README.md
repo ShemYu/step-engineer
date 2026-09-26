@@ -291,6 +291,11 @@ uv run ruff check src tests tools examples/resource_allocation
 
 Tests cover provider HTTP mocks, state transitions, path boundaries, real macOS sandbox execution, and MCP stdio. Passing them establishes harness behavior; it does not establish a model's quality on an unseen workload.
 
+Use the [test-selection rules](docs/test-selection.md) to reduce unnecessary local
+execution while preserving fault detection and complete final CI. The
+[test-cost audit](docs/test-selection-case-study.md) records the bounded Step
+experiment, retained contracts and measurement method.
+
 ## References
 
 - [Step 5 Preview: official model capabilities and limits](https://platform.stepfun.ai/docs/en/guides/models/step-5-preview)

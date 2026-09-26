@@ -20,6 +20,13 @@ to budgets, file boundaries, process isolation, credential handling or provider
 parsing should include regression coverage. Never weaken isolation merely to make
 a test pass.
 
+Use the [test-selection rules](docs/test-selection.md) during development. Choose
+tests from the actual change and shared dependencies; retain full CI as the final
+integration check. Prefer removing repeated setup or lowering pure-parser tests
+to a cheaper layer over deleting distinct input classes. Test-count reduction is
+not a quality metric. Once relevant checks pass, rerun them only for new changes,
+failures, environment drift, or unresolved concerns.
+
 Do not commit `.env.local`, `runs/`, `experiments/`, generated media or account
 information. Use synthetic fixtures with clear provenance. The public-tree
 checker examines Git's index as well as tracked working files, so stage the
