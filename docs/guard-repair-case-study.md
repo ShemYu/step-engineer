@@ -68,12 +68,13 @@ inspectable; the table alone is not sufficient to reproduce a live model run.
 
 ## Review and verification
 
-The integrated local suite passed **307 tests**, including real macOS sandbox
+The integrated local suite passed **312 tests**, including real macOS sandbox
 and MCP integration checks. Ruff and the staged public-tree audit are separate
 release checks; model success is not inferred from the test count.
 
 - [Storage boundaries](../tests/test_runner.py): real macOS sandbox execution,
-  byte/entry boundaries, and observations after cleanup.
+  byte/entry boundaries, observations after cleanup, and process-group cleanup
+  success/failure states.
 - [Validation reserve](../tests/test_validation_reserve.py): deterministic phase
   deadlines, exhausted tool batches, and saved-best final checks.
 - [Thresholds](../tests/test_improvement_threshold.py): minimize/maximize,
@@ -84,6 +85,17 @@ release checks; model success is not inferred from the test count.
 - [Parent review integration tests](../tests/test_golden_rules_integration.py):
   an exactly qualifying candidate must still be delivered after stagnation or
   exploration-time exhaustion. These three tests failed on the original code.
+
+The first hosted CI run exposed an intermittent cleanup error: a fast storage
+case raised `EPERM` from `killpg`. Another CI job on the same revision passed,
+so a rerun alone would not establish a repair. The storage development agent
+added one retry after the existing bounded wait; a persistent signal denial
+still fails the job, even if the group leader has exited. Five deterministic
+cases cover successful retry, a vanished group, live/descendant signal denial,
+and local transport cleanup failure. No additional Step request was made.
+Apple's [XNU signal implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c#L1612-L1621)
+skips zombie members and can return `EPERM` when no eligible member remains;
+this supports a possible exit race, not proof of the CI runner's kernel state.
 
 Storage monitoring is not an instantaneous filesystem quota. The validation
 reserve retains its 40% job-time cap and cannot eliminate cleanup/I/O overhead.
