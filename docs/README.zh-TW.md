@@ -52,7 +52,7 @@ flowchart TD
 | 限制迭代、為最終驗證保留時間 | 讓探索有停止條件，留下檢查成果的空間 | [Harness.optimize](../src/step_engineer/harness.py) |
 | 從最佳版本建立新副本重驗，輸出產物 | 讓呼叫端檢查實際修改、量測、用量與驗收決定 | [Harness.verify_final](../src/step_engineer/harness.py)、[Harness.run](../src/step_engineer/harness.py) |
 
-**責任邊界：**目標、測試、benchmark、門檻，以及可選的獨立最終檢查，都是 orchestrator 提供。Harness 執行這些既定評測並記錄當次工作的證據；它不負責設計測試，也不是跨模型比較的評測平台。Step 提出修改並依回饋調整，orchestrator 審查後決定是否採用。
+**責任邊界：** 目標、測試、benchmark、門檻，以及可選的獨立最終檢查，都是 orchestrator 提供。Harness 執行這些既定評測並記錄當次工作的證據；它不負責設計測試，也不是跨模型比較的評測平台。Step 提出修改並依回饋調整，orchestrator 審查後決定是否採用。
 
 合格且更好的量測結果會自動保存為 `best`；還原工作中的候選版本則需要呼叫 `restore_best`。最終驗證使用已保存 `best` 的新副本，通過驗收後 `accepted.patch` 才包含修改。沒有另設 `final_checks` 時，結果會標示 `independently_checked=false`。估算費用上限和時間保留機制不保證精確帳單或最終檢查一定成功。
 
