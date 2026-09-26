@@ -1,16 +1,40 @@
 # Step Engineer
 
-A reusable, **Step-5-Preview-specific agent harness** for optimization under explicit constraints and measurable feedback. Use its ready-made MCP server and CLI, or build your own interfaces around its reusable Python components. GPT, Grok, Claude, or another agent can orchestrate the work while Step proposes and tests improvements.
+A reusable, **Step-5-Preview-specific agent harness for constrained search**: explore better implementations and strategies inside a clearly defined environment, using measured feedback and fixed acceptance rules. Use its ready-made MCP server and CLI, or build your own interfaces around its reusable Python components. GPT, Grok, Claude, or another agent defines the task while Step explores the permitted tradeoffs.
 
-The current implementation works on local source-file tasks: it edits an isolated copy, measures candidates against fixed checks, preserves the best qualifying version, and returns a patch with verification evidence. Engineering optimization is the first supported application of the harness.
+The current implementation works on local implementation or policy files: it edits an isolated copy, measures candidates against fixed checks, preserves the best qualifying version, and returns a patch with verification evidence. A simulator can supply the environment and score; the deliverable is still reviewed code, not a deployed controller.
 
 Your parent agent keeps its existing model and reasoning settings, including Ultra where supported. Step Engineer does not replace the parent agent, apply patches to the original project, or publish changes.
 
-**[繁體中文說明](docs/README.zh-TW.md)** · **[Why Step? Evidence and charts](docs/step-evidence.md)** · [Build your MCP / CLI](docs/integrations.md#build-your-own-cli-or-mcp) · [Parent-agent instructions](docs/parent-agent-instructions.md) · [Live case study](docs/case-study.md)
+**[繁體中文說明](docs/README.zh-TW.md)** · **[Use cases](docs/use-cases.md)** · [Task brief](docs/task-brief.md) · [Why Step? Evidence and charts](docs/step-evidence.md) · [Build your MCP / CLI](docs/integrations.md#build-your-own-cli-or-mcp) · [Parent-agent instructions](docs/parent-agent-instructions.md)
+
+## When to delegate to Step
+
+Use it when you can specify **the environment, allowed decisions, objective, hard
+constraints, permitted tradeoffs, and final validation**. A useful task has a
+feasible baseline and more than one plausible strategy. The parent fixes what
+counts as success; Step is free to search the implementation space.
+
+| Situation | Useful delegation | Readiness |
+| --- | --- | --- |
+| Fixed resource capacity | Select a higher-value combination of jobs under both CPU and memory limits | [Runnable synthetic policy example](examples/resource_allocation/README.md); no live Step result claimed |
+| Behavior must stay identical | Reduce batch-processing or composition time while preserving exact outputs | [Bundled aggregation demo](examples/batch_aggregation/README.md) and [one live composition case](docs/case-study.md) |
+| Quality can trade against speed | Increase search throughput while keeping recall above a fixed threshold | Requires your own index workload, quality evaluator, and holdout data |
+| Competing scheduling objectives | Improve delivery profit or throughput under capacity and service constraints | Requires your own simulator and policy contract; no production controller is supplied |
+
+Being near a limit is useful only when it improves the objective and remains
+valid on the intended workload. Real-world variation may require an explicit
+margin. Contradictory hard constraints require a revised task contract; Step
+must not silently relax them. See the [use-case guide](docs/use-cases.md) and
+copyable [task brief](docs/task-brief.md) before submitting a job.
 
 ## Why a harness for Step?
 
-The target task has three properties: **explicit constraints, an objective evaluator, and room to explore better solutions**. The orchestrator defines success; Step uses tool feedback to search within those boundaries. StepFun's GPU-kernel and training-data experiments motivate this specialization. They are vendor evidence, not a guarantee that Step beats other models on every constrained task.
+Our specialization hypothesis is that Step is useful when **explicit constraints,
+an objective evaluator, and room to explore better solutions** meet. StepFun's
+GPU-kernel and training-data experiments motivate it. These are vendor evidence,
+not proof that Step outperforms other models or that proximity to a constraint
+is itself a measure of quality. We evaluate task outcomes, not rule exploitation.
 
 ![StepFun-reported fixed-workload kernel results: Step 5 Preview High 508, Claude Opus 5 Max 493, Kimi K3 Max 307, and GLM-5.3 Max 286 TFLOPS; best of four runs per model.](docs/assets/step-kernel-results.svg)
 
@@ -29,7 +53,7 @@ runtime is the part developers reuse behind their MCP or CLI.
 
 ```mermaid
 flowchart TD
-    O["Orchestrator supplies task and acceptance criteria"] -->|"MCP / CLI / tool adapter"| C
+    O["Orchestrator defines environment, allowed tradeoffs<br/>Objective, hard constraints, and holdout checks"] -->|"MCP / CLI / tool adapter"| C
     subgraph H["Step Engineer harness: reusable execution and validation"]
         C["1. Validate scope and snapshot files<br/>Keep the original project intact"] --> B["2. Measure the unchanged baseline<br/>Establish the comparison"]
         B --> L["3. Dispatch permitted tools<br/>Control reads, edits, and execution"]
@@ -262,7 +286,7 @@ This is a guardrail for personal engineering work, not a VM or a hostile multi-t
 ```sh
 uv sync --frozen --python 3.12
 uv run pytest -q
-uv run ruff check src tests
+uv run ruff check src tests tools examples/resource_allocation
 ```
 
 Tests cover provider HTTP mocks, state transitions, path boundaries, real macOS sandbox execution, and MCP stdio. Passing them establishes harness behavior; it does not establish a model's quality on an unseen workload.

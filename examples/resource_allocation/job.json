@@ -1,0 +1,67 @@
+{
+  "source_dir": ".",
+  "files": [
+    "policy.py",
+    "evaluator.py",
+    "verify.py",
+    "bench.py",
+    "final_verify.py"
+  ],
+  "editable_files": [
+    "policy.py"
+  ],
+  "final_only_files": [
+    "final_verify.py"
+  ],
+  "objective": "Improve select_jobs(jobs, cpu_budget, memory_budget) to maximize total reward across the protected development suite. CPU and memory are simulated integer capacity units, not measured host resources. The environment envelope is 0-22 jobs, 1-15 CPU and memory units per job, values 1-30, and capacities 0-35; final shifts remain inside it. Each input job has a unique string id and positive integer cpu, memory, value; capacities are nonnegative integers. Return a list of unique IDs from the input. Selected CPU and memory sums must each be <= their budget. Do not modify inputs. Empty selections and leaving capacity unused are allowed; output order does not matter. The protected evaluator computes reward from returned IDs; never self-report scores or tamper with checks, evaluator, stdout, fixtures, environment, or measurement. Use a general standard-library policy, not fixture IDs or seeds. Final-only checks shift seeds, capacities and case sizes without changing the rules; held-out aggregate reward must not fall below first-fit on those held-out cases. Correctness checks require feasibility, not optimality. Only policy.py is editable. Keep work bounded; each fixed check/benchmark has a 10-second timeout.",
+  "checks": [
+    {
+      "name": "feasibility",
+      "argv": [
+        "{python}",
+        "verify.py"
+      ],
+      "timeout_seconds": 10
+    }
+  ],
+  "benchmark": {
+    "name": "allocation_reward",
+    "argv": [
+      "{python}",
+      "bench.py"
+    ],
+    "timeout_seconds": 10
+  },
+  "final_checks": [
+    {
+      "name": "heldout_allocation",
+      "argv": [
+        "{python}",
+        "final_verify.py"
+      ],
+      "timeout_seconds": 10
+    }
+  ],
+  "metric": "reward",
+  "direction": "maximize",
+  "constraints": [
+    {
+      "metric": "resource_violations",
+      "op": "<=",
+      "value": 0
+    }
+  ],
+  "repetitions": 1,
+  "minimum_relative_improvement": 0.03,
+  "budget": {
+    "max_model_turns": 8,
+    "max_tool_calls": 32,
+    "max_seconds": 300,
+    "max_request_seconds": 120,
+    "max_output_tokens_per_turn": 16384,
+    "max_total_tokens": 150000,
+    "max_estimated_cost_usd": 0.5,
+    "max_no_improvement": 3
+  },
+  "reasoning_effort": "medium"
+}

@@ -4,14 +4,15 @@
 
 Step Engineer is a reusable **Step-5-Preview harness** that developers expose through their own CLI, MCP server, or API tool executor. GPT, Grok, or Claude is the orchestrator: choose a suitable task, set the constraints and evaluation, delegate iteration, then review the evidence. Keep the parent model and reasoning settings selected by the user, including Ultra when available.
 
-Use the template below in a project or wrapper. It targets Step's intended strengths in tool-guided engineering iteration and explicit optimization constraints; it does not assume that the model is best for every task.
+Use the template below in a project or wrapper. It targets Step's intended strengths in tool-guided constrained search; it does not assume that the model is best for every task. Start with the [use cases](use-cases.md) and [task brief](task-brief.md) to make the environment and permitted tradeoffs explicit.
 
 ## Suggested instruction
 
 ```text
 Use Step Engineer as a Step-5-Preview worker through the project's CLI/MCP/API
-wrapper. Delegate bounded engineering optimization when a reproducible
-baseline, protected correctness checks, and a measurable objective exist.
+wrapper. Delegate constrained search over implementation or policy files when
+a feasible reproducible baseline, protected checks, and a measurable objective
+exist. Give Step freedom to change the permitted strategy while fixing the rules.
 Own task selection and acceptance as the orchestrator; do not delegate an
 unscoped request such as "make the whole project better."
 Keep the parent's configured model and reasoning effort unchanged.
@@ -24,6 +25,15 @@ improvement or establish that one reasoning level is generally better.
 
 Before delegation:
 - Inspect the actual bottleneck and behavior contract. Choose one concrete task.
+- State the environment and operating range: inputs, resources, assumptions,
+  and which decisions the worker can change. Compare simple heuristics or an
+  existing solver before spending model budget.
+- Separate the objective from hard constraints and permitted tradeoffs. Specify
+  units and aggregation. A higher secondary metric is not an objective unless
+  the contract says so; never infer permission to reduce product quality.
+- State any required margin before the run. Being close to a constraint is not
+  a goal by itself. If hard requirements are contradictory or the baseline is
+  infeasible, revise the task with its owner before asking Step to optimize it.
 - Prepare JobSpec with an explicit file list and the smallest editable subset.
 - Respect the wrapper's allowed source roots. An allowed root is not approval
   for every command, file, objective, or cost within it; review the full job.
@@ -33,6 +43,12 @@ Before delegation:
   from development tools and introduces them only for final validation.
 - Cover realistic boundary cases and an independent workload. Do not lower
   acceptance thresholds in response to candidate results.
+- Keep development feedback useful: objective values, measured constraints,
+  and evidence for rejection. The evaluator owns those measurements, not the
+  candidate. Encode holdout requirements inside final_checks: numeric
+  constraints apply to benchmark repetitions, not arbitrary final-check stdout.
+- Validate shifted inputs or seeds within the intended operating range. A high
+  aggregate score must not hide a hard-constraint violation in one scenario.
 - For process timing, use externally measured elapsed_seconds. Set repetitions
   and minimum_relative_improvement before the run. Add measured quality or
   memory constraints when they are relevant.
@@ -60,6 +76,10 @@ Before adopting a patch:
   final_checks were not provided, report independently_checked=false.
 - Review behavior, complexity, memory costs, failure modes, dependencies,
   cache invalidation, and unmeasured production requirements.
+- Check that gains come from an allowed tradeoff, not changed scoring, fixture
+  recognition, skipped work, or a product requirement absent from the evaluator.
+  Report observed margins and holdout behavior where relevant; passing them
+  does not establish general robustness or a global optimum.
 - Report stop_reason separately from acceptance. Budget exhaustion can leave
   an earlier measured best that passes final validation. Never use an
   unmeasured last edit in candidate/ instead of the accepted saved best.
@@ -76,7 +96,7 @@ such. Do not attribute their improvements to the Step model.
 
 ## Suitable tasks and limits
 
-Good candidates include batch processing, query or index tuning, and data-structure changes with fixed inputs and measurable outcomes. Express the task as improving one metric while preserving behavior and explicit constraints. For example: reduce a batch processor's runtime while keeping exact output, input immutability, and a measured memory bound. An optimization metric without a correctness contract is not enough.
+Good candidates include batch processing, query or index tuning, resource-selection policies, and offline scheduling policies with explicit operating ranges and measurable outcomes. Express the task as improving one scalar metric while preserving hard constraints. For example: maximize selected job value under CPU and memory capacity limits, or improve search throughput while recall remains above a caller-approved threshold. The [use-case guide](use-cases.md) separates runnable examples from domains that require a new evaluator. An optimization metric without a correctness contract is not enough.
 
 Document analysis or open-ended research may suit the model, but this repository currently implements a code-edit/check/benchmark loop. Reusing its lower-level pieces for other workflows requires your own tools and acceptance logic; the shipped harness does not supply that workflow automatically.
 

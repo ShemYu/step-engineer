@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Define constrained-search use cases, permitted tradeoffs, operating ranges,
+  and a reusable task brief for parent agents.
+- Add a synthetic resource-allocation policy example with two hard capacity
+  limits and separate holdout checks; its scripted validation is not a Step result.
 - Check aggregate scratch limits after command cleanup as well as during execution.
 - Retry a denied process-group cleanup once after bounded reaping; persistent
   permission errors still fail the job and local reader tasks are cleaned up.

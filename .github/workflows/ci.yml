@@ -25,6 +25,6 @@ jobs:
       - name: Audit tracked public files
         run: uv run --frozen python tools/check_public_tree.py
       - name: Lint
-        run: uv run --frozen ruff check src tests tools
+        run: uv run --frozen ruff check src tests tools examples/resource_allocation
       - name: Test including macOS sandbox integration
         run: uv run --frozen pytest -q
