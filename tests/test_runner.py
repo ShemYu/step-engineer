@@ -132,6 +132,76 @@ async def test_per_file_limit(tmp_path):
     assert (scratch / "too-large").stat().st_size <= runner.MAX_FILE_BYTES
 
 
+def scratch_payload(kind: str, amount: int) -> str:
+    if kind == "bytes":
+        # Aggregate two files, each within the separate hard per-file limit.
+        return (
+            "from pathlib import Path; root=Path('{scratch}'); "
+            f"(root/'a').write_bytes(b'x'*{amount // 2}); "
+            f"(root/'b').write_bytes(b'x'*{amount - amount // 2}); "
+        )
+    # HOME and TMP are two entries created by the runner before command execution.
+    return (
+        "from pathlib import Path; root=Path('{scratch}'); "
+        f"[(root/str(i)).touch() for i in range({amount - 2})]; "
+    )
+
+
+@pytest.mark.parametrize("kind,limit", [("bytes", 1024), ("entries", 8)])
+@pytest.mark.parametrize("offset", [-1, 0, 1])
+@pytest.mark.parametrize("delayed", [False, True], ids=["fast", "running"])
+async def test_aggregate_storage_boundaries(tmp_path, monkeypatch, kind, limit, offset, delayed):
+    workspace, scratch = paths(tmp_path)
+    setting = "MAX_SCRATCH_BYTES" if kind == "bytes" else "MAX_SCRATCH_ENTRIES"
+    monkeypatch.setattr(runner, setting, limit)
+    code = scratch_payload(kind, limit + offset)
+    if delayed:
+        code += "import time; time.sleep(0.15)"
+
+    result = await runner.run_command(command(code), workspace, scratch)
+
+    assert result["storage_limit_exceeded"] is (offset > 0), result
+    assert not result["timed_out"], result
+    assert not result["output_limit_exceeded"], result
+    if offset <= 0:
+        assert result["exit_code"] == 0, result
+        assert "Scratch storage limit exceeded" not in result["stderr"]
+    else:
+        assert "Scratch storage limit exceeded" in result["stderr"]
+
+
+@pytest.mark.parametrize("kind,limit", [("bytes", 1024), ("entries", 8)])
+async def test_completed_command_is_checked_after_cleanup(tmp_path, monkeypatch, kind, limit):
+    workspace, scratch = paths(tmp_path)
+    setting = "MAX_SCRATCH_BYTES" if kind == "bytes" else "MAX_SCRATCH_ENTRIES"
+    monkeypatch.setattr(runner, setting, limit)
+    inspect_scratch = runner._scratch_over_limit
+    kill_group = runner._kill_group
+    cleaned = False
+
+    def cleanup(process):
+        nonlocal cleaned
+        kill_group(process)
+        cleaned = True
+
+    def inspect_after_cleanup(root):
+        # Deterministically model writes landing between the final running poll
+        # and process completion, independent of host scheduling speed. The
+        # actual child still runs under the real macOS sandbox and writes files.
+        return inspect_scratch(root) if cleaned else False
+
+    monkeypatch.setattr(runner, "_kill_group", cleanup)
+    monkeypatch.setattr(runner, "_scratch_over_limit", inspect_after_cleanup)
+
+    result = await runner.run_command(command(scratch_payload(kind, limit + 1)), workspace, scratch)
+
+    assert cleaned
+    assert result["exit_code"] == 0, result
+    assert not result["timed_out"], result
+    assert result["storage_limit_exceeded"], result
+    assert "Scratch storage limit exceeded" in result["stderr"]
+
+
 async def test_no_unsandboxed_fallback(tmp_path, monkeypatch):
     workspace, scratch = paths(tmp_path)
     monkeypatch.setattr(runner, "SANDBOX_EXEC", tmp_path / "missing-sandbox-exec")

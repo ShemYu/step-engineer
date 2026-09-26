@@ -276,6 +276,10 @@ async def run_command(
                 task.cancel()
             process._transport.close()
         await asyncio.gather(wait_task, *readers, return_exceptions=True)
+    # Completion can happen between running polls. Inspect retained scratch after
+    # cleanup too, keeping any earlier violation sticky. This monitored aggregate
+    # limit is not an instantaneous disk quota.
+    disk_limit_exceeded = disk_limit_exceeded or _scratch_over_limit(scratch)
     if disk_limit_exceeded:
         message = b"\nScratch storage limit exceeded."
         stderr[-len(message) :] = message
