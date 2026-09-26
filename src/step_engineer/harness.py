@@ -244,6 +244,17 @@ class Harness:
         delta = original - score if self.spec.direction == "minimize" else score - original
         return delta / max(abs(original), 1e-12)
 
+    def meets_improvement_threshold(self, score: float) -> bool:
+        assert self.baseline is not None
+        original = self.baseline["score"]
+        delta = original - score if self.spec.direction == "minimize" else score - original
+        required = self.spec.minimum_relative_improvement * max(abs(original), 1e-12)
+        # Compare gains in score units. A few input-scale ULPs cover representation
+        # and arithmetic roundoff (e.g. 0.3 -> 0.27); a fixed epsilon could admit
+        # real shortfalls for small scores. Strictly-better remains a separate gate.
+        roundoff = math.ulp(original) + math.ulp(score) + math.ulp(required)
+        return delta >= required or required - delta <= roundoff
+
     async def evaluate(self) -> dict:
         self.evaluations += 1
         measured = await self.measure(self.workspace.root)
@@ -434,7 +445,7 @@ class Harness:
         self.event("final_validation_started")
         if (
             self.best is None
-            or self.improvement(self.best["score"]) < self.spec.minimum_relative_improvement
+            or not self.meets_improvement_threshold(self.best["score"])
         ):
             return False
         root = self.workspace.validation_workspace(self.workspace.best)
@@ -454,7 +465,7 @@ class Harness:
         valid = (
             measured["feasible"]
             and self.better(measured["score"], self.baseline["score"])
-            and self.improvement(measured["score"]) >= self.spec.minimum_relative_improvement
+            and self.meets_improvement_threshold(measured["score"])
         )
         self.final_validation = {
             "passed": valid,
