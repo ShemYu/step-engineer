@@ -54,7 +54,7 @@ L 0 3.5
       </g>
      </g>
      <g id="text_1">
-      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #536176" x="194.4" y="341.190437" transform="rotate(-0 194.4 341.190437)">0</text>
+      <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle; fill: #536176" x="194.4" y="341.190437" transform="rotate(-0 194.4 341.190437)">0</text>
      </g>
     </g>
     <g id="xtick_2">
@@ -69,7 +69,7 @@ L 286.907586 136.08
       </g>
      </g>
      <g id="text_2">
-      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #536176" x="286.907586" y="341.190437" transform="rotate(-0 286.907586 341.190437)">100</text>
+      <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle; fill: #536176" x="286.907586" y="341.190437" transform="rotate(-0 286.907586 341.190437)">100</text>
      </g>
     </g>
     <g id="xtick_3">
@@ -84,7 +84,7 @@ L 379.415172 136.08
       </g>
      </g>
      <g id="text_3">
-      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #536176" x="379.415172" y="341.190437" transform="rotate(-0 379.415172 341.190437)">200</text>
+      <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle; fill: #536176" x="379.415172" y="341.190437" transform="rotate(-0 379.415172 341.190437)">200</text>
      </g>
     </g>
     <g id="xtick_4">
@@ -99,7 +99,7 @@ L 471.922759 136.08
       </g>
      </g>
      <g id="text_4">
-      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #536176" x="471.922759" y="341.190437" transform="rotate(-0 471.922759 341.190437)">300</text>
+      <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle; fill: #536176" x="471.922759" y="341.190437" transform="rotate(-0 471.922759 341.190437)">300</text>
      </g>
     </g>
     <g id="xtick_5">
@@ -114,7 +114,7 @@ L 564.430345 136.08
       </g>
      </g>
      <g id="text_5">
-      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #536176" x="564.430345" y="341.190437" transform="rotate(-0 564.430345 341.190437)">400</text>
+      <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle; fill: #536176" x="564.430345" y="341.190437" transform="rotate(-0 564.430345 341.190437)">400</text>
      </g>
     </g>
     <g id="xtick_6">
@@ -129,40 +129,40 @@ L 656.937931 136.08
       </g>
      </g>
      <g id="text_6">
-      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #536176" x="656.937931" y="341.190437" transform="rotate(-0 656.937931 341.190437)">500</text>
+      <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle; fill: #536176" x="656.937931" y="341.190437" transform="rotate(-0 656.937931 341.190437)">500</text>
      </g>
     </g>
     <g id="text_7">
-     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #17253b" x="462.672" y="364.38825" transform="rotate(-0 462.672 364.38825)">Forward + backward achieved TFLOPS (higher is better)</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle; fill: #17253b" x="462.672" y="364.38825" transform="rotate(-0 462.672 364.38825)">Forward + backward achieved TFLOPS (higher is better)</text>
     </g>
    </g>
    <g id="matplotlib.axis_2">
     <g id="ytick_1">
      <g id="line2d_13"/>
      <g id="text_8">
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(93.106875 157.521402)">Step 5 Preview</text>
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(118.1925 170.958777)">High effort</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(93.106875 157.521402)">Step 5 Preview</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(118.1925 170.958777)">High effort</text>
      </g>
     </g>
     <g id="ytick_2">
      <g id="line2d_14"/>
      <g id="text_9">
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(94.543125 205.899259)">Claude Opus 5</text>
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(120.96375 219.336634)">Max effort</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(94.543125 205.899259)">Claude Opus 5</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(120.96375 219.336634)">Max effort</text>
      </g>
     </g>
     <g id="ytick_3">
      <g id="line2d_15"/>
      <g id="text_10">
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(136.85625 254.277116)">Kimi K3</text>
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(120.96375 267.714491)">Max effort</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(136.85625 254.277116)">Kimi K3</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(120.96375 267.714491)">Max effort</text>
      </g>
     </g>
     <g id="ytick_4">
      <g id="line2d_16"/>
      <g id="text_11">
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(132.64875 302.654973)">GLM-5.3</text>
-      <text style="font-size: 12px; font-family: 'DejaVu Sans'" transform="translate(120.96375 316.092348)">Max effort</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(132.64875 302.654973)">GLM-5.3</text>
+      <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(120.96375 316.092348)">Max effort</text>
      </g>
     </g>
    </g>
@@ -204,35 +204,35 @@ L 730.944 326.592
 " style="fill: none; stroke: #a9b4c2; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
    <g id="text_12">
-    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253b" x="672.664221" y="162.356402" transform="rotate(-0 672.664221 162.356402)">508</text>
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #17253b" x="672.664221" y="162.356402" transform="rotate(-0 672.664221 162.356402)">508</text>
    </g>
    <g id="text_13">
-    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253b" x="658.788083" y="210.734259" transform="rotate(-0 658.788083 210.734259)">493</text>
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #17253b" x="658.788083" y="210.734259" transform="rotate(-0 658.788083 210.734259)">493</text>
    </g>
    <g id="text_14">
-    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253b" x="486.723972" y="259.112116" transform="rotate(-0 486.723972 259.112116)">307</text>
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #17253b" x="486.723972" y="259.112116" transform="rotate(-0 486.723972 259.112116)">307</text>
    </g>
    <g id="text_15">
-    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253b" x="467.297379" y="307.489973" transform="rotate(-0 467.297379 307.489973)">286</text>
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #17253b" x="467.297379" y="307.489973" transform="rotate(-0 467.297379 307.489973)">286</text>
    </g>
   </g>
   <g id="text_16">
-   <text style="font-weight: 700; font-size: 21px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253b" x="34.992" y="27.216" transform="rotate(-0 34.992 27.216)">StepFun's reported GPU kernel results</text>
+   <text style="font-weight: 700; font-size: 21px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #17253b" x="34.992" y="27.216" transform="rotate(-0 34.992 27.216)">StepFun's reported GPU kernel results</text>
   </g>
   <g id="text_17">
-   <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #17253b" x="34.992" y="56.7" transform="rotate(-0 34.992 56.7)">Best of 4 runs per model | 24-hour budget per run</text>
+   <text style="font-size: 13px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #17253b" x="34.992" y="56.7" transform="rotate(-0 34.992 56.7)">Best of 4 runs per model | 24-hour budget per run</text>
   </g>
   <g id="text_18">
-   <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #536176" x="34.992" y="78.4728" transform="rotate(-0 34.992 78.4728)">Fixed MLA workload on one NVIDIA H100</text>
+   <text style="font-size: 12px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #536176" x="34.992" y="78.4728" transform="rotate(-0 34.992 78.4728)">Fixed MLA workload on one NVIDIA H100</text>
   </g>
   <g id="text_19">
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #536176" x="34.992" y="385.56" transform="rotate(-0 34.992 385.56)">Vendor-reported best runs; not average performance or an equal-cost comparison.</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #536176" x="34.992" y="385.56" transform="rotate(-0 34.992 385.56)">Vendor-reported best runs; not average performance or an equal-cost comparison.</text>
   </g>
   <g id="text_20">
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #536176" x="34.992" y="403.704" transform="rotate(-0 34.992 403.704)">Shape: head dimension 512 | batch 1 | 64 heads | 8,192 tokens.</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #536176" x="34.992" y="403.704" transform="rotate(-0 34.992 403.704)">Shape: head dimension 512 | batch 1 | 64 heads | 8,192 tokens.</text>
   </g>
   <g id="text_21">
-   <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #536176" x="34.992" y="428.652" transform="rotate(-0 34.992 428.652)">Source: stepfun.com/step-5-preview | Checked 2026-09-26</text>
+   <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start; fill: #536176" x="34.992" y="428.652" transform="rotate(-0 34.992 428.652)">Source: stepfun.com/step-5-preview | Checked 2026-09-26</text>
   </g>
  </g>
  <defs>

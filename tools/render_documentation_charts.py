@@ -106,7 +106,8 @@ def main() -> None:
     parser.add_argument("--preview-dir", type=Path)
     args = parser.parse_args()
     plt.rcParams.update({
-        "font.family": "DejaVu Sans",
+        "font.family": "sans-serif",
+        "font.sans-serif": ["DejaVu Sans", "Arial", "Helvetica", "sans-serif"],
         "font.size": 12,
         "text.color": INK,
         "axes.labelcolor": INK,
