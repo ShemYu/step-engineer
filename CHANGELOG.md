@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Clarify the project as a reusable Step-5-Preview harness with ready-made and
+  customizable MCP, CLI, and orchestrator tool interfaces.
+- Add English and Traditional Chinese capability evidence, sourced comparison
+  figures, an architecture diagram, and an official-documentation directory.
+- Add custom CLI and MCP wrapper examples using the existing Python components.
+
 ## 0.1.1 — 2026-09-26
 
 - Support macOS framework-based Python installations, including GitHub Actions

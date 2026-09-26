@@ -2,13 +2,18 @@
 
 [English README](../README.md) · [繁體中文](README.zh-TW.md) · [Integrations](integrations.md)
 
-Use this as a project-level instruction template. Keep the parent model and reasoning settings selected by the user, including Ultra when available. Step Engineer supplies a bounded worker; the parent still owns requirements, evaluation quality, review, and adoption.
+Step Engineer is a reusable **Step-5-Preview harness** that developers expose through their own CLI, MCP server, or API tool executor. GPT, Grok, or Claude is the orchestrator: choose a suitable task, set the constraints and evaluation, delegate iteration, then review the evidence. Keep the parent model and reasoning settings selected by the user, including Ultra when available.
+
+Use the template below in a project or wrapper. It targets Step's intended strengths in tool-guided engineering iteration and explicit optimization constraints; it does not assume that the model is best for every task.
 
 ## Suggested instruction
 
 ```text
-Use Step Engineer for bounded engineering optimization when a reproducible
+Use Step Engineer as a Step-5-Preview worker through the project's CLI/MCP/API
+wrapper. Delegate bounded engineering optimization when a reproducible
 baseline, protected correctness checks, and a measurable objective exist.
+Own task selection and acceptance as the orchestrator; do not delegate an
+unscoped request such as "make the whole project better."
 Keep the parent's configured model and reasoning effort unchanged.
 
 A job's reasoning_effort controls only the Step worker. It defaults to medium
@@ -20,6 +25,8 @@ improvement or establish that one reasoning level is generally better.
 Before delegation:
 - Inspect the actual bottleneck and behavior contract. Choose one concrete task.
 - Prepare JobSpec with an explicit file list and the smallest editable subset.
+- Respect the wrapper's allowed source roots. An allowed root is not approval
+  for every command, file, objective, or cost within it; review the full job.
 - Own correctness checks, benchmark, final checks, constraints, and budget.
 - Put separate final-validation files in final_only_files and files, never in
   editable_files. The harness withholds these files and final-check commands
@@ -39,7 +46,9 @@ for MCP. CLI relative source_dir resolves against the job JSON's directory.
 A local host executes tools; a cloud model does not access this workstation's
 localhost or filesystem directly.
 
-Keep the MCP session alive while a job runs. Retain the run ID, poll status at
+Keep the local service and its async event loop alive while a job runs. MCP
+wrappers must retain their session; API hosts must await service.close() on
+shutdown, not after submission. Retain the run ID, poll status at
 reasonable intervals, and cancel superseded work. Retrieve the final result
 for unsuccessful runs too. Do not automatically retry a paid request.
 
@@ -67,10 +76,16 @@ such. Do not attribute their improvements to the Step model.
 
 ## Suitable tasks and limits
 
-Good candidates include batch processing, query or index tuning, and data-structure changes with fixed inputs and measurable outcomes. Express the task as improving one metric while preserving behavior and explicit constraints.
+Good candidates include batch processing, query or index tuning, and data-structure changes with fixed inputs and measurable outcomes. Express the task as improving one metric while preserving behavior and explicit constraints. For example: reduce a batch processor's runtime while keeping exact output, input immutability, and a measured memory bound. An optimization metric without a correctness contract is not enough.
+
+Document analysis or open-ended research may suit the model, but this repository currently implements a code-edit/check/benchmark loop. Reusing its lower-level pieces for other workflows requires your own tools and acceptance logic; the shipped harness does not supply that workflow automatically.
 
 A subjective visual objective, an unclear product requirement, or an unrepresentative microbenchmark needs additional evaluation design before delegation. A faster local function does not establish higher application FPS or better production latency.
 
 The bundled aggregation example exchanges additional index memory for expected time-complexity improvement. Its job does not measure memory, so acceptance cannot establish lower memory use. External process timing includes interpreter startup, input preparation, and validation.
 
 Final-only files are hidden from development tools, not from the program during final verification. The local sandbox is not a hostile-code VM; inspect the implementation and evaluator together before trusting a result.
+
+## Wrapper responsibilities
+
+Use [`JobService`, `build_server`, or `ToolBridge`](integrations.md#build-your-own-cli-or-mcp) to add task templates, domain-specific tool names, or a custom CLI. The wrapper owns authentication setup, allowed roots, job review, and process lifetime. The harness owns the bounded iteration and saved-best verification. There is no scaffold generator or runtime plugin registry; changing worker tools or sandbox backends requires code changes. All existing entry points leave the original project unchanged.

@@ -1,6 +1,6 @@
 # Live case study: sprite composition
 
-[English README](../README.md) · [繁體中文](README.zh-TW.md)
+[English README](../README.md) · [繁體中文](README.zh-TW.md) · [Step evidence and charts](step-evidence.md)
 
 On 2026-09-26, Step Engineer was used through its local MCP interface to optimize a JavaScript sprite-composition function. The target was generating a fresh set of nine poses when appearance or equipment changed. The browser already cached finished frames, so **this was not a playback-FPS experiment**.
 
@@ -31,6 +31,11 @@ The accepted implementation moved invariant bounds and field reads outside pixel
 The run ultimately stopped at its **total-token budget**. A later third draft in the working candidate directory had not been evaluated and was excluded. The harness preserved the earlier measured best and performed final validation on that saved version. This distinction matters: a budget stop is not itself success, and the last file written is not automatically the accepted implementation.
 
 ## Measurements
+
+![Local sprite-composition timings: real assets 1.340068 to 1.198424 milliseconds, synthetic batch 1.088911 to 0.859693 seconds. The two panels use different timing scopes.](assets/local-case-results.svg)
+
+The figure uses [reviewed aggregate data](data/step-evidence.json). It does not
+include private code or artwork, or reconstruct a trial-by-trial timing series.
 
 | Workload and metric | Baseline | Accepted version | Reduction |
 | --- | ---: | ---: | ---: |

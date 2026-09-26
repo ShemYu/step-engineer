@@ -1,0 +1,35 @@
+{
+  "checked_on": "2026-09-26",
+  "official_kernel": {
+    "provenance": "StepFun vendor-reported experiment; best of four independent runs per model",
+    "source_url": "https://www.stepfun.com/step-5-preview",
+    "figure_url": "https://www.stepfun.com/assets/inference-combined-7fkNnlSY.png",
+    "metric": "Forward + backward achieved TFLOPS",
+    "direction": "higher",
+    "budget_hours_per_run": 24,
+    "hardware": "One NVIDIA H100",
+    "shape": {"head_dimension": 512, "batch_size": 1, "heads": 64, "tokens": 8192},
+    "rows": [
+      {"model": "Step 5 Preview", "effort": "High", "tflops": 508},
+      {"model": "Claude Opus 5", "effort": "Max", "tflops": 493},
+      {"model": "Kimi K3", "effort": "Max", "tflops": 307},
+      {"model": "GLM-5.3", "effort": "Max", "tflops": 286}
+    ],
+    "limits": "Fixed workload; no mean, variance, numerical tolerance, or equal-cost comparison disclosed in the reviewed presentation. Endpoint values only: no time-series reconstruction."
+  },
+  "local_case": {
+    "provenance": "One local Step Engineer sprite-composition workload; private application fixtures are not included",
+    "source_url": "https://github.com/ShemYu/step-engineer/blob/main/docs/case-study.md",
+    "direction": "lower",
+    "rows": [
+      {"name": "Real assets: fresh nine poses", "unit": "ms", "baseline": 1.340068, "accepted": 1.198424},
+      {"name": "Synthetic batch: whole process", "unit": "s", "baseline": 1.088911, "accepted": 0.859693}
+    ],
+    "attempts": 3,
+    "attempts_without_patch": 2,
+    "accepted_run_requests": 8,
+    "accepted_run_tokens": 126365,
+    "accepted_run_seconds": 292.522,
+    "limits": "Different timing scopes and units; not animation FPS. No confidence intervals or other-model comparison. Not an independently reproducible public benchmark."
+  }
+}

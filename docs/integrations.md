@@ -1,15 +1,17 @@
-# Connect a parent agent
+# Build a Step worker into your own CLI or MCP
 
 [English README](../README.md) · [繁體中文](README.zh-TW.md) · [Delegation instructions](parent-agent-instructions.md)
 
-Step Engineer keeps your existing parent model, authentication, conversation loop, and reasoning settings unchanged. A job's `reasoning_effort` controls only the Step worker and defaults to `medium`. Ultra, when available, remains a setting of the parent application.
+Step Engineer is a reusable harness specifically for **Step-5-Preview**. Developers can use its existing CLI/MCP server or wrap its Python components in their own tools. GPT, Grok, or Claude acts as the orchestrator: it defines a bounded task, delegates the measurable iteration to Step, and reviews the result. The worker is designed for explicit constraints and repeated check–measure–improve cycles; its suitability still needs validation on your workload.
+
+The parent model, authentication, conversation loop, and reasoning settings stay in the host application. A job's `reasoning_effort` controls only Step and defaults to `medium`; Ultra, when available, remains a parent setting.
 
 ```text
-Parent agent
-  -> Local MCP host or API tool executor
-  -> Step Engineer -> Step API + isolated local checks
-  -> Measured results and patch
-  -> Parent review and application
+GPT / Grok / Claude orchestrator
+  -> Your CLI, MCP host, or API tool executor
+  -> Step Engineer harness -> Step-5-Preview + isolated local checks
+  -> Measured best candidate and final-validation evidence
+  -> Orchestrator review; original source remains unchanged
 ```
 
 Every `/absolute/path/to/...` below is a placeholder. Use paths appropriate to your installation; do not paste credential values into client configuration or prompts.
@@ -90,6 +92,124 @@ A Claude Code MCP config can launch the same process. See the [official MCP guid
 ```
 
 For a config saved at a chosen path, launch the client with its supported config option, for example `claude --mcp-config /absolute/path/to/step-mcp.json`. No global registration is required by Step Engineer itself.
+
+## Build your own CLI or MCP
+
+There is no scaffold-generator command. These importable components are the current extension surface:
+
+| Component | Your wrapper owns | Existing behavior you reuse |
+| --- | --- | --- |
+| `JobSpec` and `load_job(path)` | Objective, file list, checks, metrics, budget, task templates | Validation and CLI-relative source resolution |
+| `JobService(runs_dir, allowed_roots)` | Authorized roots, artifact location, process lifetime | Async jobs, status/results, cancellation; at most two active jobs |
+| `build_server(service)` | MCP launcher and optional domain-specific tools | Four standard tools and shutdown cleanup |
+| `ToolBridge(service)` | Parent API client and tool-result envelopes | Provider-shaped schemas and local dispatch |
+| `Harness(spec, run_dir, client)` | Lower-level runner integration | Step tool loop, measurements, best snapshot, final verification |
+
+Prefer `JobService` in a wrapper: it applies source-root authorization and creates run directories. Direct `Harness` construction does **not** add those service-level policies for you. The current harness is an engineering optimizer with a fixed set of worker tools; it does not provide a general plugin registry, model router, or arbitrary workflow generator. New checks and workloads usually belong in a `JobSpec`; changing the worker tool set or execution backend requires implementation work.
+
+### A custom Python CLI
+
+Save this as `optimize_cli.py` in your own tooling project, with `step_engineer` installed in its environment. It reuses the same job contract and keeps the event loop alive until termination. An existing Step key is required for live mode; `--offline-demo` only accepts the bundled example and makes no model request.
+
+```python
+import argparse
+import asyncio
+import json
+import sys
+from pathlib import Path
+
+from step_engineer.cli import load_job
+from step_engineer.service import JobService
+
+
+async def optimize(args):
+    job = load_job(args.job)
+    service = JobService(
+        args.runs_dir, [args.allow_root], offline_demo=args.offline_demo
+    )
+    try:
+        async with asyncio.timeout(job.budget.max_seconds + 120):
+            submitted = await service.submit(job)
+            run_id = submitted["run_id"]
+            print(json.dumps({"run_id": run_id}), file=sys.stderr, flush=True)
+            while service.status(run_id)["status"] in {"queued", "running"}:
+                await asyncio.sleep(5)
+            return service.result(run_id)
+    finally:
+        # Also cancels outstanding work if this CLI is interrupted or times out.
+        await service.close()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("job", type=Path)
+    parser.add_argument("--allow-root", type=Path, required=True)
+    parser.add_argument("--runs-dir", type=Path, default=Path("runs"))
+    parser.add_argument("--offline-demo", action="store_true")
+    args = parser.parse_args()
+    try:
+        result = asyncio.run(optimize(args))
+    except KeyboardInterrupt:
+        return 130
+    except Exception:
+        # Do not echo errors that may include job contents or provider details.
+        print('{"error":"Local optimization failed or timed out"}', file=sys.stderr)
+        return 1
+    print(json.dumps(result, ensure_ascii=False))
+    return 0 if result.get("accepted") else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+For example, from an environment with the package installed:
+
+```sh
+python optimize_cli.py /absolute/path/to/job.json \
+  --allow-root /absolute/path/to/your-project \
+  --runs-dir /absolute/path/to/optimization-runs
+```
+
+Relative `source_dir` still resolves beside the job JSON. This wrapper exits successfully only for an accepted improvement; the built-in CLI has its own exit-code behavior. Neither applies the patch. A keyless smoke check can add `--offline-demo` while pointing both the job and allowed root at the bundled example. Raw result JSON can contain project-specific details; do not publish it without review.
+
+### A custom MCP launcher and task shortcut
+
+Save this as `optimization_mcp.py`. It adds a shortcut that submits a developer-selected job file while retaining the four standard tools for status, results, cancellation, and general submission.
+
+```python
+import argparse
+from pathlib import Path
+
+from step_engineer.cli import load_job
+from step_engineer.server import build_server
+from step_engineer.service import JobService
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("job", type=Path)
+    parser.add_argument("--allow-root", type=Path, required=True)
+    parser.add_argument("--runs-dir", type=Path, required=True)
+    args = parser.parse_args()
+    service = JobService(args.runs_dir, [args.allow_root])
+    server = build_server(service)
+
+    @server.tool()
+    async def optimize_reviewed_job() -> dict:
+        """Submit this launcher's reviewed job; returns a run ID, not a patch."""
+        return await service.submit(load_job(args.job))
+
+    server.run(transport="stdio")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+Configure your MCP host to launch this Python script with the job, `--allow-root`, and `--runs-dir` arguments. Provision the Step key in that process environment. `build_server` owns the service's shutdown lifecycle and calls `await service.close()` when the session ends; do not close the service after each tool call. Inside an already-running async host, use its existing event loop for service/bridge calls rather than nesting `asyncio.run()`.
+
+The shortcut is a convenience, **not an access restriction**: `build_server` still exposes `submit_optimization(job)`. `allowed_roots` limits where sources may come from; it does not decide whether an objective, command, or budget is appropriate. The orchestrator must review those. To expose only a curated job catalog, build your own MCP tool registrations and lifespan around `JobService`, including shutdown cancellation, instead of exposing the generic submit tool.
 
 ## Existing GPT, Grok, or Claude API loops
 

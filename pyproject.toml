@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "step-engineer"
 version = "0.1.1"
-description = "A local, provider-neutral engineering optimization sub-agent powered by StepFun"
+description = "A reusable Step-5-Preview harness with MCP and CLI interfaces for constrained optimization"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
@@ -36,9 +36,12 @@ include = [
     "/.gitignore",
     "/LICENSE",
     "/docs/*.md",
+    "/docs/assets/*.svg",
+    "/docs/data/step-evidence.json",
     "/src/step_engineer/**/*.py",
     "/tests/test_*.py",
     "/tools/check_public_tree.py",
+    "/tools/render_documentation_charts.py",
     "/.github/workflows/ci.yml",
     "/examples/batch_aggregation/*.py",
     "/examples/batch_aggregation/job.json",

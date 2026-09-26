@@ -1,10 +1,48 @@
 # Step Engineer
 
-A local engineering optimization sub-agent powered by **Step-5-Preview**. Give it a bounded task, fixed correctness checks, and a measurable objective. It edits an isolated copy, measures candidates, preserves the best qualifying version, and returns a patch with verification evidence.
+A reusable, **Step-5-Preview-specific agent harness** for optimization under explicit constraints and measurable feedback. Use its ready-made MCP server and CLI, or build your own interfaces around the same job service. GPT, Grok, Claude, or another agent can orchestrate the work while Step proposes and tests improvements.
+
+The current implementation works on local source-file tasks: it edits an isolated copy, measures candidates against fixed checks, preserves the best qualifying version, and returns a patch with verification evidence. Engineering optimization is the first supported application of the harness.
 
 Your parent agent keeps its existing model and reasoning settings, including Ultra where supported. Step Engineer does not replace the parent agent, apply patches to the original project, or publish changes.
 
-**[繁體中文說明](docs/README.zh-TW.md)** · [Integrations](docs/integrations.md) · [Parent-agent instructions](docs/parent-agent-instructions.md) · [Live case study](docs/case-study.md)
+**[繁體中文說明](docs/README.zh-TW.md)** · **[Why Step? Evidence and charts](docs/step-evidence.md)** · [Build your MCP / CLI](docs/integrations.md#build-your-own-cli-or-mcp) · [Parent-agent instructions](docs/parent-agent-instructions.md) · [Live case study](docs/case-study.md)
+
+## Why a harness for Step?
+
+The target task has three properties: **explicit constraints, an objective evaluator, and room to explore better solutions**. The orchestrator defines success; Step uses tool feedback to search within those boundaries. StepFun's GPU-kernel and training-data experiments motivate this specialization. They are vendor evidence, not a guarantee that Step beats other models on every constrained task.
+
+![StepFun-reported fixed-workload kernel results: Step 5 Preview High 508, Claude Opus 5 Max 493, Kimi K3 Max 307, and GLM-5.3 Max 286 TFLOPS; best of four runs per model.](docs/assets/step-kernel-results.svg)
+
+*Vendor-reported results, checked 2026-09-26: a fixed MLA workload on one H100, with a 24-hour budget per run. This compares best runs with different reasoning settings, not averages or equal-cost results. [Official presentation](https://www.stepfun.com/step-5-preview); [method, source data, and limitations](docs/step-evidence.md).*
+
+Our own live case reduced fresh nine-pose composition time by **10.57%**, with identical RGBA outputs in the tested cases. Two preceding attempts produced no patch. This is one local workload, not a comparative model benchmark. The [evidence guide](docs/step-evidence.md) separates official results, our measurements, and untested hypotheses, and explains which model capabilities this harness currently uses.
+
+## How other agents use it
+
+```mermaid
+flowchart TD
+    O["Orchestrator: GPT, Grok, Claude, or another agent"] -->|"Task, constraints, evaluator, budget"| I["Built-in or custom MCP / CLI / tool adapter"]
+    I --> J["JobService: source boundaries and job lifecycle"]
+    J --> H["Harness: snapshots, budgets, candidate selection"]
+    H -->|"Context and feedback"| S["Step-5-Preview API"]
+    S -->|"Proposed edits and tool calls"| H
+    H --> E["Local evaluator: protected checks and benchmark"]
+    E -->|"Measured outcomes"| H
+    H --> R["Saved best: final validation, patch, metrics, usage"]
+    R -->|"Review and adoption"| O
+```
+
+**Step** proposes changes and reacts to feedback. **The harness** enforces the contract and records evidence. **The orchestrator** owns task selection, evaluation quality, and adoption. The arrows describe a local host executing tool calls; cloud models do not directly access your filesystem.
+
+| Your starting point | Reuse this layer |
+| --- | --- |
+| An agent with MCP support | Launch the [built-in stdio server](docs/integrations.md#local-mcp-stdio) |
+| A terminal or automation script | Use `step-engineer run job.json` |
+| Your own domain-specific MCP or CLI | Wrap `JobService` or extend the server; see [working examples](docs/integrations.md#build-your-own-cli-or-mcp) |
+| An existing GPT, Grok, or Claude API tool loop | Use [`ToolBridge`](docs/integrations.md#existing-gpt-grok-or-claude-api-loops) |
+
+The current release provides reusable Python components and examples; it does not generate a new MCP/CLI project automatically. Candidate execution currently requires macOS. Larger-context and multimodal model capabilities are documented separately from what this text-based worker exposes.
 
 ## What it provides
 
@@ -167,11 +205,14 @@ Tests cover provider HTTP mocks, state transitions, path boundaries, real macOS 
 
 ## References
 
+- [Step 5 Preview: official model capabilities and limits](https://platform.stepfun.ai/docs/en/guides/models/step-5-preview)
+- [Step 5 Preview: official experiments and results](https://www.stepfun.com/step-5-preview)
 - [Step quickstart](https://platform.stepfun.ai/docs/en/quickstart/overview)
 - [Step Chat Completions](https://platform.stepfun.ai/docs/en/api-reference/chat/chat-completion-create)
 - [Step tool calls](https://platform.stepfun.ai/docs/en/api-reference/tool-call)
 - [Step reasoning](https://platform.stepfun.ai/docs/en/guides/developer/reasoning)
 - [Step pricing](https://platform.stepfun.ai/docs/en/guides/pricing/details)
+- [Evidence, chart data, and the complete official-documentation directory](docs/step-evidence.md)
 - [MCP Python SDK v1](https://github.com/modelcontextprotocol/python-sdk/tree/v1.x)
 
 This project uses the MCP Python SDK v1 interface.

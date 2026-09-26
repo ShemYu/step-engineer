@@ -1,8 +1,44 @@
 # Step Engineer：繁體中文說明
 
-[English README](../README.md) · [主 Agent 接法](integrations.md) · [委派指示](parent-agent-instructions.md) · [真實案例](case-study.md)
+[English README](../README.md) · **[Step 強項：數據與圖表](step-evidence.zh-TW.md)** · [自訂 MCP／CLI](integrations.md#build-your-own-cli-or-mcp) · [委派指示](parent-agent-instructions.md) · [真實案例](case-study.md)
 
-Step Engineer 是在本機執行的工程最佳化 sub-agent，使用 **Step-5-Preview**。主 Agent 保留既有模型與推理設定，例如支援時使用 Ultra；它負責需求、驗收與最終採用。Step worker 接收有界任務，在副本裡修改、測試、量測，交回 patch 與證據，不會替換主 Agent、自動套用 patch 或發布修改。
+Step Engineer 是**專為 Step-5-Preview 設計的可重用 agent harness**，讓開發者透過現成或自訂的 MCP、CLI，把「明確約束下、可量測並反覆改進的任務」交給 Step。GPT、Grok、Claude 或其他 agent 可以擔任 orchestrator，負責需求、評分標準與最終採用，保留原本模型與推理設定，例如支援時使用 Ultra。
+
+目前實作以本機原始碼任務為範圍：在副本裡修改、測試、量測，保存已驗證的最佳候選，交回 patch 與證據。工程最佳化是第一種已支援的應用。套件提供現成介面、可重用 Python 元件與範例；目前沒有自動產生新 MCP／CLI 專案的 generator。
+
+## 為什麼針對 Step 設計？
+
+我們鎖定的任務同時具備：**規則與限制明確、結果可以客觀評分、仍有值得探索的解法空間**。主 Agent 定義「什麼才算更好」，Step 根據工具回饋提出並改進方案。
+
+![StepFun 官方固定工作負載測試：Step 5 Preview High 為 508、Claude Opus 5 Max 為 493、Kimi K3 Max 為 307、GLM-5.3 Max 為 286 TFLOPS；每個模型取四次執行最佳值。](assets/step-kernel-results.svg)
+
+*官方展示，查核於 2026-09-26：單張 H100、固定 MLA 工作負載、每次 24 小時預算、每模型四次取最佳。推理設定不同，也不是平均表現或相同費用的比較。[官方來源](https://www.stepfun.com/step-5-preview)；[完整數據、解讀與限制](step-evidence.zh-TW.md)。*
+
+我們自己的真實案例，在測試涵蓋的 RGBA 輸出保持一致時，讓九姿勢重新合成耗時降低 **10.57%**；此前兩次嘗試沒有產生 patch。這支持此任務的可行性，還不能證明 Step 普遍優於其他模型。[能力與證據頁](step-evidence.zh-TW.md)分開整理官方結果、本地實測、待驗證假設，以及模型功能與本 harness 目前支援範圍的差異。
+
+## Harness、Step 與 orchestrator 的分工
+
+```mermaid
+flowchart TD
+    O["Orchestrator：GPT、Grok、Claude 或其他 agent"] -->|"任務、限制、評分器、預算"| I["現成或自訂 MCP／CLI／工具介面"]
+    I --> J["JobService：來源範圍與工作生命週期"]
+    J --> H["Harness：副本、預算、候選選擇"]
+    H -->|"上下文與實驗回饋"| S["Step-5-Preview API"]
+    S -->|"提出修改與工具呼叫"| H
+    H --> E["本機評測：固定檢查與 benchmark"]
+    E -->|"量測結果"| H
+    H --> R["已保存最佳版本：最終驗證、patch、指標、用量"]
+    R -->|"審查與採用"| O
+```
+
+Step 負責提出解法與根據回饋調整；harness 負責執行邊界、預算、驗證及保存證據；orchestrator 負責挑選任務、設計評分與採用結果。模型提出工具呼叫後，仍由有檔案權限的本機 host 執行。
+
+| 你要建構的介面 | 可重用的部分 |
+| --- | --- |
+| 支援 MCP 的 agent | 直接啟動內建 stdio server |
+| 終端機或自動化流程 | 使用 `step-engineer run job.json` |
+| 自己領域的 MCP／CLI | 包裝 `JobService` 或擴充 server，見[可用範例](integrations.md#build-your-own-cli-or-mcp) |
+| 既有 GPT／Grok／Claude API 工具迴圈 | 透過 `ToolBridge` 取得 schema 並執行本機 dispatch |
 
 預設是 `medium`、每次最多 **16,384 輸出 tokens／300 秒**、全程最多 **250,000 tokens**。這是目前可用的起點，不是成功保證。本次一個真實任務中，high 配合 8,192 與 16,384 輸出上限的兩次嘗試都未產生 patch；medium 一次產生通過驗收的版本。單一案例不能證明 medium 普遍優於 high。
 
@@ -133,6 +169,17 @@ uv run ruff check src tests
 ```
 
 測試涵蓋 HTTP mock、harness 狀態、路徑界線、真實 macOS sandbox 與 MCP stdio。測試通過證明框架行為，不能代替特定任務的真實模型評估。
+
+## Step 官方文件
+
+- [Step 5 Preview：模型能力與限制](https://platform.stepfun.ai/docs/en/guides/models/step-5-preview)
+- [官方模型介紹與實驗](https://www.stepfun.com/step-5-preview)
+- [Quickstart：第一次 API 呼叫](https://platform.stepfun.ai/docs/en/quickstart/overview)
+- [Chat Completions API](https://platform.stepfun.ai/docs/en/api-reference/chat/chat-completion-create)
+- [Tool calling](https://platform.stepfun.ai/docs/en/api-reference/tool-call)
+- [Reasoning effort](https://platform.stepfun.ai/docs/en/guides/developer/reasoning)
+- [價格與速率限制](https://platform.stepfun.ai/docs/en/guides/pricing/details)
+- [完整證據、圖表資料與官方文件索引](step-evidence.zh-TW.md)
 
 ## 授權
 
