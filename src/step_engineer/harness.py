@@ -105,6 +105,17 @@ class Harness:
     def remaining(self) -> float:
         return self.spec.budget.max_seconds - (time.monotonic() - self.started)
 
+    def validation_reserve(self) -> float:
+        reserve = sum(c.timeout_seconds for c in self.spec.final_checks)
+        reserve += sum(c.timeout_seconds for c in self.spec.checks)
+        reserve += self.spec.repetitions * self.spec.benchmark.timeout_seconds
+        # This cap keeps exploration possible when configured timeouts are large.
+        # It is a best-effort allowance, not a guarantee all final checks finish.
+        return min(reserve, self.spec.budget.max_seconds * 0.4)
+
+    def exploration_remaining(self) -> float:
+        return self.remaining() - self.validation_reserve()
+
     def event(self, kind: str, **data: Any) -> None:
         item = {"event": kind, "elapsed_seconds": round(time.monotonic() - self.started, 3), **data}
         with (self.run_dir / "events.jsonl").open("a") as f:
@@ -125,8 +136,12 @@ class Harness:
         )
 
     async def command(self, command: Any, root: Path) -> dict:
-        if self.remaining() <= 0:
-            raise BudgetExceeded("wall_time_budget")
+        exploring = self.phase == "optimizing"
+        available = self.exploration_remaining() if exploring else self.remaining()
+        if available <= 0:
+            raise BudgetExceeded(
+                "wall_time_reserved_for_validation" if exploring else "wall_time_budget"
+            )
         self.command_index += 1
         scratch = self.run_dir / "scratch" / str(self.command_index)
         try:
@@ -134,7 +149,7 @@ class Harness:
                 command,
                 root,
                 scratch,
-                timeout_seconds=min(command.timeout_seconds, self.remaining()),
+                timeout_seconds=min(command.timeout_seconds, available),
             )
         finally:
             shutil.rmtree(scratch, ignore_errors=True)
@@ -307,12 +322,7 @@ class Harness:
         ]
         budget = self.spec.budget
         for _ in range(budget.max_model_turns):
-            # Leave time for a complete final measurement and independent checks.
-            reserve = sum(c.timeout_seconds for c in self.spec.final_checks)
-            reserve += sum(c.timeout_seconds for c in self.spec.checks)
-            reserve += self.spec.repetitions * self.spec.benchmark.timeout_seconds
-            reserve = min(reserve, budget.max_seconds * 0.4)
-            if self.remaining() <= reserve:
+            if self.exploration_remaining() <= 0:
                 self.stop_reason = "wall_time_reserved_for_validation"
                 return
             if self.tool_calls >= budget.max_tool_calls:
@@ -338,7 +348,7 @@ class Harness:
             if self.estimated_cost + reserve_cost > budget.max_estimated_cost_usd:
                 self.stop_reason = "estimated_cost_budget"
                 return
-            request_timeout = min(budget.max_request_seconds, self.remaining() - reserve)
+            request_timeout = min(budget.max_request_seconds, self.exploration_remaining())
             if request_timeout <= 0:
                 self.stop_reason = "wall_time_reserved_for_validation"
                 return
@@ -387,6 +397,9 @@ class Harness:
                 )
                 return
             for call in calls:
+                if self.exploration_remaining() <= 0:
+                    self.stop_reason = "wall_time_reserved_for_validation"
+                    return
                 if self.tool_calls >= budget.max_tool_calls:
                     self.stop_reason = "tool_budget"
                     return
@@ -395,7 +408,12 @@ class Harness:
                 try:
                     arguments = json.loads(call["function"]["arguments"])
                     result = await self.dispatch(name, arguments)
-                except BudgetExceeded:
+                except BudgetExceeded as exc:
+                    if str(exc) == "wall_time_reserved_for_validation":
+                        # An evaluation may exhaust exploration between commands.
+                        # Return normally so run() still verifies the saved best.
+                        self.stop_reason = str(exc)
+                        return
                     raise
                 except (ValueError, TypeError, OSError) as exc:
                     result = {"error": str(exc)[:300]}
