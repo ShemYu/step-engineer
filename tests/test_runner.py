@@ -137,3 +137,41 @@ async def test_no_unsandboxed_fallback(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "SANDBOX_EXEC", tmp_path / "missing-sandbox-exec")
     with pytest.raises(RuntimeError, match="refusing unsandboxed"):
         await runner.run_command(command("print('never')"), workspace, scratch)
+
+
+@pytest.mark.parametrize("use_alias", [False, True])
+def test_framework_runtime_allows_exact_shared_library_without_broadening(
+    tmp_path, monkeypatch, use_alias
+):
+    framework_root = tmp_path / "Library" / "Frameworks"
+    version = framework_root / "Python.framework" / "Versions" / "3.12"
+    version.mkdir(parents=True)
+    (version / "Python").write_bytes(b"synthetic shared library")
+    prefix = version
+    if use_alias:
+        prefix = version.parent / "Current"
+        prefix.symlink_to(version, target_is_directory=True)
+    monkeypatch.setattr(runner.sys, "base_prefix", str(prefix))
+    monkeypatch.setattr(
+        runner.sysconfig, "get_config_var",
+        lambda key: "Python" if key == "PYTHONFRAMEWORK" else None,
+    )
+
+    trees, exact = runner._runtime_paths()
+
+    assert prefix / "Python" in exact
+    assert version / "Python" in exact
+    assert not any((version / "Python").is_relative_to(tree) for tree in trees)
+    assert framework_root not in trees
+    assert framework_root.parent not in trees
+    assert Path.home() not in trees
+    profile = runner._profile(tmp_path / "workspace", tmp_path / "scratch", Path(sys.executable))
+    assert f'(literal "{version / "Python"}")' in profile
+    assert f'(subpath "{framework_root}")' not in profile
+
+
+def test_standalone_runtime_does_not_grant_framework_library(tmp_path, monkeypatch):
+    monkeypatch.setattr(runner.sys, "base_prefix", str(tmp_path / "standalone"))
+    monkeypatch.setattr(runner.sysconfig, "get_config_var", lambda _: "")
+    _, exact = runner._runtime_paths()
+    assert tmp_path / "standalone" / "Python" not in exact

@@ -70,6 +70,15 @@ def _runtime_paths() -> tuple[set[Path], set[Path]]:
     exact.add(Path(sys.executable).absolute())
     exact.add(Path(sys.executable).resolve())
     exact.add(Path(getattr(sys, "_base_executable", sys.executable)).absolute())
+    framework = sysconfig.get_config_var("PYTHONFRAMEWORK")
+    if isinstance(framework, str) and framework and Path(framework).name == framework:
+        # Framework builds place libpython beside lib/, not within it. Use the
+        # running interpreter's version prefix: build-time framework prefixes can
+        # be stale after relocation. Keep this an exact-file grant, including the
+        # alias and resolved path, rather than exposing the framework directory.
+        shared_library = Path(sys.base_prefix) / framework
+        exact.add(shared_library.absolute())
+        exact.add(shared_library.resolve())
     return trees, exact
 
 

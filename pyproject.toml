@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "step-engineer"
-version = "0.1.0"
+version = "0.1.1"
 description = "A local, provider-neutral engineering optimization sub-agent powered by StepFun"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -32,6 +32,7 @@ include = [
     "/README.md",
     "/SECURITY.md",
     "/CONTRIBUTING.md",
+    "/CHANGELOG.md",
     "/.gitignore",
     "/LICENSE",
     "/docs/*.md",
