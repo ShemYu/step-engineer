@@ -1,0 +1,23 @@
+"""Handwritten fixture for offline harness testing; NOT a Step model result.
+
+Same aggregation contract as the baseline, using a first-wins customer index.
+"""
+
+
+def aggregate_orders(orders: list[dict], customers: list[dict]) -> list[dict]:
+    by_id = {}
+    for customer in customers:
+        by_id.setdefault(customer["id"], customer)
+    totals = {}
+    for order in orders:
+        if order["status"] != "paid":
+            continue
+        customer = by_id.get(order["customer_id"])
+        if customer is None or not customer["active"]:
+            continue
+        region = customer["region"]
+        if region not in totals:
+            totals[region] = {"region": region, "order_count": 0, "total_cents": 0}
+        totals[region]["order_count"] += 1
+        totals[region]["total_cents"] += order["amount_cents"]
+    return [totals[region] for region in sorted(totals)]

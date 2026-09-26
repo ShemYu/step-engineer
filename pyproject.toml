@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "step-engineer"
+version = "0.1.0"
+description = "A local, provider-neutral engineering optimization sub-agent powered by StepFun"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.28,<1", "pydantic>=2.10,<3", "mcp>=1.20,<2", "python-dotenv>=1.0,<2"]
+
+[project.scripts]
+step-engineer = "step_engineer.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.9"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+# Explicit public-file allowlists also apply to builds from a dirty checkout.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/pyproject.toml",
+    "/uv.lock",
+    "/README.md",
+    "/SECURITY.md",
+    "/CONTRIBUTING.md",
+    "/.gitignore",
+    "/LICENSE",
+    "/docs/*.md",
+    "/src/step_engineer/**/*.py",
+    "/tests/test_*.py",
+    "/tools/check_public_tree.py",
+    "/.github/workflows/ci.yml",
+    "/examples/batch_aggregation/*.py",
+    "/examples/batch_aggregation/job.json",
+    "/examples/batch_aggregation/README.md",
+    "/examples/batch_aggregation/offline_solution.txt",
+]
+exclude = ["**/__pycache__/**", "**/.env*", "**/runs/**", "**/experiments/**"]
+
+[tool.hatch.build.targets.sdist.force-include]
+".env.example" = ".env.example"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/step_engineer"]
+sources = ["src"]
+include = ["**/*.py"]
+exclude = ["**/__pycache__/**", "**/.env*", "**/runs/**", "**/experiments/**"]
+
+# Include only the synthetic example's known files, never its entire directory.
+[tool.hatch.build.targets.wheel.force-include]
+"examples/batch_aggregation/processor.py" = "step_engineer/_examples/batch_aggregation/processor.py"
+"examples/batch_aggregation/bench.py" = "step_engineer/_examples/batch_aggregation/bench.py"
+"examples/batch_aggregation/verify.py" = "step_engineer/_examples/batch_aggregation/verify.py"
+"examples/batch_aggregation/final_verify.py" = "step_engineer/_examples/batch_aggregation/final_verify.py"
+"examples/batch_aggregation/job.json" = "step_engineer/_examples/batch_aggregation/job.json"
+"examples/batch_aggregation/README.md" = "step_engineer/_examples/batch_aggregation/README.md"
+"examples/batch_aggregation/offline_solution.txt" = "step_engineer/_examples/batch_aggregation/offline_solution.txt"

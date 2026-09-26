@@ -1,0 +1,25 @@
+{
+  "source_dir": ".",
+  "files": ["processor.py", "verify.py", "bench.py", "final_verify.py"],
+  "editable_files": ["processor.py"],
+  "final_only_files": ["final_verify.py"],
+  "objective": "Optimize aggregate_orders in processor.py for repeated batch order aggregation. Preserve the documented API and exact integer results: only paid orders for known active customers count; the FIRST matching customer ID wins even if inactive; IDs may be integers, strings, or None; unknown customers are ignored; negative amounts are refunds; region rows are sorted; inputs are never mutated. Improve algorithmic performance on general batches rather than special-casing fixture values. Keep the implementation standard-library only. Do not edit checks, benchmark, or final verification. The external runner's elapsed_seconds metric includes startup and dataset construction, and lower is better.",
+  "checks": [{"name": "correctness", "argv": ["{python}", "verify.py"], "timeout_seconds": 30}],
+  "benchmark": {"name": "batch_timing", "argv": ["{python}", "bench.py"], "timeout_seconds": 45},
+  "final_checks": [{"name": "final_correctness", "argv": ["{python}", "final_verify.py"], "timeout_seconds": 45}],
+  "metric": "elapsed_seconds",
+  "direction": "minimize",
+  "repetitions": 3,
+  "minimum_relative_improvement": 0.1,
+  "budget": {
+    "max_model_turns": 12,
+    "max_tool_calls": 24,
+    "max_seconds": 600,
+    "max_request_seconds": 300,
+    "max_output_tokens_per_turn": 16384,
+    "max_total_tokens": 250000,
+    "max_estimated_cost_usd": 0.5,
+    "max_no_improvement": 3
+  },
+  "reasoning_effort": "medium"
+}
