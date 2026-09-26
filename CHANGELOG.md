@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Check aggregate scratch limits after command cleanup as well as during execution.
+- Retry a denied process-group cleanup once after bounded reaping; persistent
+  permission errors still fail the job and local reader tasks are cleaned up.
+- Apply the final-validation time reserve to development commands and batched tool
+  dispatch, then validate saved best when exploration time runs out.
+- Accept exact improvement thresholds despite score-scale floating-point roundoff,
+  without relaxing strict improvement or metric constraints.
+- Enforce the no-improvement limit within a response's tool batch, before further
+  edits or model requests; add cross-guard integration coverage.
+- Document four Step-assisted repair attempts, including rejected candidates,
+  reviewed partial adoption, and conservative costs.
 - Clarify the project as a reusable Step-5-Preview harness with ready-made and
   customizable MCP, CLI, and orchestrator tool interfaces.
 - Add English and Traditional Chinese capability evidence, sourced comparison

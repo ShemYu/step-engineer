@@ -72,6 +72,12 @@ separate `final_checks`, the result reports `independently_checked=false`. Estim
 cost limits and the validation-time reserve do not guarantee an exact bill or a
 successful final check.
 
+The final-validation allowance is deducted from both model-request and development
+command deadlines. Reaching that exploration deadline stops further tool dispatch
+and hands the saved best to final validation. Baseline and final checks use the
+remaining job deadline. The allowance retains a 40% job-time cap, and process
+cleanup adds overhead, so it remains a best-effort reservation.
+
 ### Where MCP and CLI fit
 
 MCP and CLI are entry points to this runtime. The built-in CLI calls `Harness`
@@ -217,6 +223,19 @@ Generic defaults are 12 model turns, 40 tool calls, 600 seconds, 250,000 total t
 Cost estimates use US$1 per million input tokens and US$2.70 per million output tokens, checked on 2026-09-26, and ignore cache discounts. They are conservative local estimates, **not a billing guarantee**. Interrupted or timed-out requests can still be billed; uncertain usage is marked, and requests are not automatically retried.
 
 The harness first measures the unchanged snapshot. Only a qualifying, better evaluated candidate becomes `best`. Final validation uses a fresh copy of that saved version. **An unmeasured last edit never replaces the saved best.** Budget exhaustion and acceptance are reported separately: a run may exhaust its budget while an earlier measured candidate still passes final verification.
+
+Improvement-threshold comparisons allow score-scale floating-point roundoff at
+the boundary, while still requiring a strictly better score. This tolerance does
+not relax metric constraints or compensate for benchmark noise.
+
+`max_no_improvement` counts completed candidate evaluations that do not improve
+the saved best, including infeasible candidates. A new best resets the count;
+reads, writes, and rejected tool arguments do not increment it. Reaching the
+limit stops the rest of the tool batch and proceeds to final validation.
+
+The [guard-repair case study](docs/guard-repair-case-study.md) records four bounded
+Step attempts and the subsequent developer-agent repairs and parent review,
+including failures and costs. It is not a model benchmark.
 
 Artifacts are written under `runs/<run_id>/` in the current working directory by default. Set `--runs-dir` explicitly when integrating a host:
 

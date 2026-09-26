@@ -267,15 +267,34 @@ async def run_command(
             )
     finally:
         # Always remove remaining descendants, including after a successful parent exit.
-        _kill_group(process)
+        retry_cleanup = False
+        try:
+            _kill_group(process)
+        except PermissionError:
+            # Darwin can report EPERM while a group contains only exiting/zombie
+            # members. Let the existing bounded wait reap the direct child, then
+            # retry once. Its returncode alone cannot rule out live descendants.
+            retry_cleanup = True
         _, pending = await asyncio.wait([wait_task, *readers], timeout=1)
-        if pending:
-            # A deliberately detached session can keep inherited pipes open. Do not
-            # allow that to hang the host; this sandbox is not a hostile-code VM.
+        try:
+            if retry_cleanup:
+                # Only a successful signal or ESRCH establishes cleanup here.
+                # Persistent EPERM must propagate rather than accept the result.
+                _kill_group(process)
+        finally:
+            # A deliberately detached session can keep inherited pipes open.
+            # Finish local cleanup even when signalling the group was denied.
             for task in pending:
                 task.cancel()
-            process._transport.close()
-        await asyncio.gather(wait_task, *readers, return_exceptions=True)
+            try:
+                if pending:
+                    process._transport.close()
+            finally:
+                await asyncio.gather(wait_task, *readers, return_exceptions=True)
+    # Completion can happen between running polls. Inspect retained scratch after
+    # cleanup too, keeping any earlier violation sticky. This monitored aggregate
+    # limit is not an instantaneous disk quota.
+    disk_limit_exceeded = disk_limit_exceeded or _scratch_over_limit(scratch)
     if disk_limit_exceeded:
         message = b"\nScratch storage limit exceeded."
         stderr[-len(message) :] = message

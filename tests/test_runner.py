@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import json
+import signal
 import sys
 import time
 from pathlib import Path
@@ -130,6 +132,174 @@ async def test_per_file_limit(tmp_path):
     )
     assert result["exit_code"] != 0
     assert (scratch / "too-large").stat().st_size <= runner.MAX_FILE_BYTES
+
+
+def scratch_payload(kind: str, amount: int) -> str:
+    if kind == "bytes":
+        # Aggregate two files, each within the separate hard per-file limit.
+        return (
+            "from pathlib import Path; root=Path('{scratch}'); "
+            f"(root/'a').write_bytes(b'x'*{amount // 2}); "
+            f"(root/'b').write_bytes(b'x'*{amount - amount // 2}); "
+        )
+    # HOME and TMP are two entries created by the runner before command execution.
+    return (
+        "from pathlib import Path; root=Path('{scratch}'); "
+        f"[(root/str(i)).touch() for i in range({amount - 2})]; "
+    )
+
+
+@pytest.mark.parametrize("kind,limit", [("bytes", 1024), ("entries", 8)])
+@pytest.mark.parametrize("offset", [-1, 0, 1])
+@pytest.mark.parametrize("delayed", [False, True], ids=["fast", "running"])
+async def test_aggregate_storage_boundaries(tmp_path, monkeypatch, kind, limit, offset, delayed):
+    workspace, scratch = paths(tmp_path)
+    setting = "MAX_SCRATCH_BYTES" if kind == "bytes" else "MAX_SCRATCH_ENTRIES"
+    monkeypatch.setattr(runner, setting, limit)
+    code = scratch_payload(kind, limit + offset)
+    if delayed:
+        code += "import time; time.sleep(0.15)"
+
+    result = await runner.run_command(command(code), workspace, scratch)
+
+    assert result["storage_limit_exceeded"] is (offset > 0), result
+    assert not result["timed_out"], result
+    assert not result["output_limit_exceeded"], result
+    if offset <= 0:
+        assert result["exit_code"] == 0, result
+        assert "Scratch storage limit exceeded" not in result["stderr"]
+    else:
+        assert "Scratch storage limit exceeded" in result["stderr"]
+
+
+@pytest.mark.parametrize("kind,limit", [("bytes", 1024), ("entries", 8)])
+async def test_completed_command_is_checked_after_cleanup(tmp_path, monkeypatch, kind, limit):
+    workspace, scratch = paths(tmp_path)
+    setting = "MAX_SCRATCH_BYTES" if kind == "bytes" else "MAX_SCRATCH_ENTRIES"
+    monkeypatch.setattr(runner, setting, limit)
+    inspect_scratch = runner._scratch_over_limit
+    kill_group = runner._kill_group
+    cleaned = False
+
+    def cleanup(process):
+        nonlocal cleaned
+        kill_group(process)
+        cleaned = True
+
+    def inspect_after_cleanup(root):
+        # Deterministically model writes landing between the final running poll
+        # and process completion, independent of host scheduling speed. The
+        # actual child still runs under the real macOS sandbox and writes files.
+        return inspect_scratch(root) if cleaned else False
+
+    monkeypatch.setattr(runner, "_kill_group", cleanup)
+    monkeypatch.setattr(runner, "_scratch_over_limit", inspect_after_cleanup)
+
+    result = await runner.run_command(command(scratch_payload(kind, limit + 1)), workspace, scratch)
+
+    assert cleaned
+    assert result["exit_code"] == 0, result
+    assert not result["timed_out"], result
+    assert result["storage_limit_exceeded"], result
+    assert "Scratch storage limit exceeded" in result["stderr"]
+
+
+class CleanupProcess:
+    """Control exit/reaping separately from group signalling in race regressions."""
+
+    pid = 999999999
+
+    def __init__(self, *, exited=False, close_denied=False):
+        self.returncode = 0 if exited else None
+        self.stdout = asyncio.StreamReader()
+        self.stderr = asyncio.StreamReader()
+        self.finished = asyncio.Event()
+        if exited:
+            self.finished.set()
+        self.reaped = self.closed = self.wait_cancelled = False
+        self.close_denied = close_denied
+        self._transport = self
+
+    async def wait(self):
+        try:
+            await self.finished.wait()
+        except asyncio.CancelledError:
+            self.wait_cancelled = True
+            raise
+        self.returncode = 0
+        self.reaped = True
+        self.stdout.feed_eof()
+        self.stderr.feed_eof()
+        return 0
+
+    def close(self):
+        self.closed = True
+        if self.close_denied:
+            raise PermissionError(errno.EPERM, "direct child signal denied")
+
+
+@pytest.mark.parametrize("group_gone", [False, True], ids=["signal-succeeds", "group-gone"])
+async def test_cleanup_retries_permission_race_after_reaping(tmp_path, monkeypatch, group_gone):
+    workspace, scratch = paths(tmp_path)
+    process = CleanupProcess()
+    signals = []
+
+    async def launch(*args, **kwargs):
+        # Force cleanup before the wait task runs, as a running storage poll can.
+        (scratch / "payload").write_bytes(b"xx")
+        return process
+
+    def killpg(pid, sig):
+        signals.append((pid, sig))
+        if len(signals) == 1:
+            assert not process.reaped
+            process.finished.set()
+            raise PermissionError(errno.EPERM, "exiting group")
+        assert process.reaped
+        if group_gone:
+            raise ProcessLookupError(errno.ESRCH, "group disappeared after reap")
+
+    monkeypatch.setattr(runner.asyncio, "create_subprocess_exec", launch)
+    monkeypatch.setattr(runner.os, "killpg", killpg)
+    monkeypatch.setattr(runner, "MAX_SCRATCH_BYTES", 1)
+
+    result = await runner.run_command(command("pass"), workspace, scratch)
+
+    assert signals == [(process.pid, signal.SIGKILL)] * 2
+    assert result["storage_limit_exceeded"]
+    assert result["exit_code"] == 0
+    assert not result["timed_out"]
+
+
+@pytest.mark.parametrize("exited,close_denied", [(False, False), (False, True), (True, False)])
+async def test_cleanup_persistent_permission_error_fails_closed(
+    tmp_path, monkeypatch, exited, close_denied
+):
+    workspace, scratch = paths(tmp_path)
+    process = CleanupProcess(exited=exited, close_denied=close_denied)
+    signals = []
+
+    async def launch(*args, **kwargs):
+        return process
+
+    def killpg(pid, sig):
+        signals.append((pid, sig))
+        # Even an exited leader may have descendants whose group cannot be killed.
+        raise PermissionError(errno.EPERM, "group signal denied")
+
+    monkeypatch.setattr(runner.asyncio, "create_subprocess_exec", launch)
+    monkeypatch.setattr(runner.os, "killpg", killpg)
+
+    with pytest.raises(PermissionError):
+        await runner.run_command(command("pass", timeout=0.01), workspace, scratch)
+
+    assert signals == [(process.pid, signal.SIGKILL)] * 2
+    if not exited:
+        assert process.closed
+        assert process.wait_cancelled
+        # Both pipe readers were cancelled/awaited even if transport.close failed.
+        assert process.stdout._waiter is None
+        assert process.stderr._waiter is None
 
 
 async def test_no_unsandboxed_fallback(tmp_path, monkeypatch):

@@ -105,6 +105,17 @@ class Harness:
     def remaining(self) -> float:
         return self.spec.budget.max_seconds - (time.monotonic() - self.started)
 
+    def validation_reserve(self) -> float:
+        reserve = sum(c.timeout_seconds for c in self.spec.final_checks)
+        reserve += sum(c.timeout_seconds for c in self.spec.checks)
+        reserve += self.spec.repetitions * self.spec.benchmark.timeout_seconds
+        # This cap keeps exploration possible when configured timeouts are large.
+        # It is a best-effort allowance, not a guarantee all final checks finish.
+        return min(reserve, self.spec.budget.max_seconds * 0.4)
+
+    def exploration_remaining(self) -> float:
+        return self.remaining() - self.validation_reserve()
+
     def event(self, kind: str, **data: Any) -> None:
         item = {"event": kind, "elapsed_seconds": round(time.monotonic() - self.started, 3), **data}
         with (self.run_dir / "events.jsonl").open("a") as f:
@@ -125,8 +136,12 @@ class Harness:
         )
 
     async def command(self, command: Any, root: Path) -> dict:
-        if self.remaining() <= 0:
-            raise BudgetExceeded("wall_time_budget")
+        exploring = self.phase == "optimizing"
+        available = self.exploration_remaining() if exploring else self.remaining()
+        if available <= 0:
+            raise BudgetExceeded(
+                "wall_time_reserved_for_validation" if exploring else "wall_time_budget"
+            )
         self.command_index += 1
         scratch = self.run_dir / "scratch" / str(self.command_index)
         try:
@@ -134,7 +149,7 @@ class Harness:
                 command,
                 root,
                 scratch,
-                timeout_seconds=min(command.timeout_seconds, self.remaining()),
+                timeout_seconds=min(command.timeout_seconds, available),
             )
         finally:
             shutil.rmtree(scratch, ignore_errors=True)
@@ -229,6 +244,17 @@ class Harness:
         delta = original - score if self.spec.direction == "minimize" else score - original
         return delta / max(abs(original), 1e-12)
 
+    def meets_improvement_threshold(self, score: float) -> bool:
+        assert self.baseline is not None
+        original = self.baseline["score"]
+        delta = original - score if self.spec.direction == "minimize" else score - original
+        required = self.spec.minimum_relative_improvement * max(abs(original), 1e-12)
+        # Compare gains in score units. A few input-scale ULPs cover representation
+        # and arithmetic roundoff (e.g. 0.3 -> 0.27); a fixed epsilon could admit
+        # real shortfalls for small scores. Strictly-better remains a separate gate.
+        roundoff = math.ulp(original) + math.ulp(score) + math.ulp(required)
+        return delta >= required or required - delta <= roundoff
+
     async def evaluate(self) -> dict:
         self.evaluations += 1
         measured = await self.measure(self.workspace.root)
@@ -307,12 +333,7 @@ class Harness:
         ]
         budget = self.spec.budget
         for _ in range(budget.max_model_turns):
-            # Leave time for a complete final measurement and independent checks.
-            reserve = sum(c.timeout_seconds for c in self.spec.final_checks)
-            reserve += sum(c.timeout_seconds for c in self.spec.checks)
-            reserve += self.spec.repetitions * self.spec.benchmark.timeout_seconds
-            reserve = min(reserve, budget.max_seconds * 0.4)
-            if self.remaining() <= reserve:
+            if self.exploration_remaining() <= 0:
                 self.stop_reason = "wall_time_reserved_for_validation"
                 return
             if self.tool_calls >= budget.max_tool_calls:
@@ -338,7 +359,7 @@ class Harness:
             if self.estimated_cost + reserve_cost > budget.max_estimated_cost_usd:
                 self.stop_reason = "estimated_cost_budget"
                 return
-            request_timeout = min(budget.max_request_seconds, self.remaining() - reserve)
+            request_timeout = min(budget.max_request_seconds, self.exploration_remaining())
             if request_timeout <= 0:
                 self.stop_reason = "wall_time_reserved_for_validation"
                 return
@@ -387,6 +408,9 @@ class Harness:
                 )
                 return
             for call in calls:
+                if self.exploration_remaining() <= 0:
+                    self.stop_reason = "wall_time_reserved_for_validation"
+                    return
                 if self.tool_calls >= budget.max_tool_calls:
                     self.stop_reason = "tool_budget"
                     return
@@ -395,7 +419,12 @@ class Harness:
                 try:
                     arguments = json.loads(call["function"]["arguments"])
                     result = await self.dispatch(name, arguments)
-                except BudgetExceeded:
+                except BudgetExceeded as exc:
+                    if str(exc) == "wall_time_reserved_for_validation":
+                        # An evaluation may exhaust exploration between commands.
+                        # Return normally so run() still verifies the saved best.
+                        self.stop_reason = str(exc)
+                        return
                     raise
                 except (ValueError, TypeError, OSError) as exc:
                     result = {"error": str(exc)[:300]}
@@ -407,6 +436,11 @@ class Harness:
                     }
                 )
                 self.event("tool_completed", name=name, attempt=self.tool_calls)
+                # Stagnation is measured by completed evaluations only; stop as soon as
+                # the limit is reached, before any further exploration or paid request.
+                if self.no_improvement >= budget.max_no_improvement:
+                    self.stop_reason = "no_improvement_limit"
+                    return
                 if self.stop_reason == "model_finished":
                     return
         self.stop_reason = "model_turn_budget"
@@ -416,7 +450,7 @@ class Harness:
         self.event("final_validation_started")
         if (
             self.best is None
-            or self.improvement(self.best["score"]) < self.spec.minimum_relative_improvement
+            or not self.meets_improvement_threshold(self.best["score"])
         ):
             return False
         root = self.workspace.validation_workspace(self.workspace.best)
@@ -436,7 +470,7 @@ class Harness:
         valid = (
             measured["feasible"]
             and self.better(measured["score"], self.baseline["score"])
-            and self.improvement(measured["score"]) >= self.spec.minimum_relative_improvement
+            and self.meets_improvement_threshold(measured["score"])
         )
         self.final_validation = {
             "passed": valid,

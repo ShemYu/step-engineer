@@ -24,6 +24,11 @@ per-command writable scratch space. Output, time and scratch storage are bounded
 Other platforms refuse candidate execution instead of falling back to an
 unsandboxed process.
 
+Aggregate scratch bytes and entry counts are monitored while a command runs and
+checked again after process cleanup. A completed command can therefore have exit
+code zero and still be rejected for storage use. This monitoring is not an
+instantaneous filesystem quota; transient writes between checks can exceed it.
+
 The sandbox permits runtime library reads. Keep credentials out of interpreter
 and dependency directories. Same-interpreter test tampering, deliberately escaped
 process groups, resource-limit races and malicious installed dependencies require
