@@ -1,14 +1,27 @@
 # Step Engineer：繁體中文說明
 
-[English README](../README.md) · **[Step 強項：數據與圖表](step-evidence.zh-TW.md)** · [自訂 MCP／CLI](integrations.md#build-your-own-cli-or-mcp) · [委派指示](parent-agent-instructions.md) · [真實案例](case-study.md)
+[English README](../README.md) · **[使用情境與任務契約](use-cases.zh-TW.md)** · [Step 強項：數據與圖表](step-evidence.zh-TW.md) · [自訂 MCP／CLI](integrations.md#build-your-own-cli-or-mcp) · [委派指示](parent-agent-instructions.md)
 
-Step Engineer 是**專為 Step-5-Preview 設計的可重用 agent harness**，讓開發者透過現成或自訂的 MCP、CLI，把「明確約束下、可量測並反覆改進的任務」交給 Step。GPT、Grok、Claude 或其他 agent 可以擔任 orchestrator，負責需求、評分標準與最終採用，保留原本模型與推理設定，例如支援時使用 Ultra。
+Step Engineer 是**專為 Step-5-Preview 設計的約束搜尋 harness**：在環境、規則與驗收標準明確時，讓 Step 透過量測回饋，探索更好的實作與策略。開發者可使用現成或自訂的 MCP、CLI；GPT、Grok、Claude 或其他 agent 擔任 orchestrator，定義目標與允許的取捨，保留原本模型與推理設定，例如支援時使用 Ultra。
 
-目前實作以本機原始碼任務為範圍：在副本裡修改、測試、量測，保存已驗證的最佳候選，交回 patch 與證據。工程最佳化是第一種已支援的應用。套件提供現成介面、可重用 Python 元件與範例；目前沒有自動產生新 MCP／CLI 專案的 generator。
+目前實作修改本機的程式或策略檔：在副本裡測試、量測，保存已驗證的最佳候選，交回 patch 與證據。模擬器可以提供環境與分數，交付物仍是待審查的程式。套件提供現成介面、可重用 Python 元件與範例；目前沒有自動產生新 MCP／CLI 專案的 generator。
+
+## 什麼任務值得交給 Step？
+
+先定義六件事：**環境、可調動作、目標、硬限制、允許的取捨、最終驗證**。適合的任務有合格 baseline，且存在多種可能策略。主 Agent 固定「什麼才算更好」，讓 Step 自由探索「怎麼達成」。
+
+| 情境 | 委派內容 | 目前範圍 |
+| --- | --- | --- |
+| 固定資源配置 | 在 CPU、記憶體容量上限內，挑出總收益更高的工作組合 | [可執行的合成策略範例](../examples/resource_allocation/README.md)，尚無本例的 Step 實測結果 |
+| 行為完全不變 | 保留精確輸出，降低批次處理或圖像合成耗時 | [聚合範例](../examples/batch_aggregation/README.md)與[一個真實合成案例](case-study.md) |
+| 品質與速度取捨 | 召回率守住既定門檻，提高搜尋吞吐量 | 需由呼叫端提供索引工作負載、品質評估與保留資料 |
+| 排程目標有張力 | 在容量與服務限制下，提高配送利潤或吞吐量 | 需提供模擬器與策略契約；本套件未提供生產控制器 |
+
+接近門檻只有在提高目標分數、且對目標工作負載仍合格時才有價值。環境會變動時，應事先定義裕度與保留情境。硬限制真正互斥時，需重訂任務契約，不能自行放寬。完整用例與可複製的委派格式見[使用情境指南](use-cases.zh-TW.md)。
 
 ## 為什麼針對 Step 設計？
 
-我們鎖定的任務同時具備：**規則與限制明確、結果可以客觀評分、仍有值得探索的解法空間**。主 Agent 定義「什麼才算更好」，Step 根據工具回饋提出並改進方案。
+我們要驗證的專長假設是：Step 適合在**規則與限制明確、結果可以客觀評分、仍有值得探索的解法空間**的任務中反覆改進。官方展示提供選擇這個方向的理由，尚不能證明普遍領先；「離門檻很近」本身也不是品質指標。
 
 ![StepFun 官方固定工作負載測試：Step 5 Preview High 為 508、Claude Opus 5 Max 為 493、Kimi K3 Max 為 307、GLM-5.3 Max 為 286 TFLOPS；每個模型取四次執行最佳值。](assets/step-kernel-results.svg)
 
@@ -24,7 +37,7 @@ Step 提出下一個修改方向；harness 把這些提案變成有範圍、可�
 
 ```mermaid
 flowchart TD
-    O["Orchestrator 提供任務與驗收標準"] -->|"MCP／CLI／工具介面"| C
+    O["Orchestrator 定義環境與允許的取捨<br/>目標、硬限制與保留情境檢查"] -->|"MCP／CLI／工具介面"| C
     subgraph H["Step Engineer harness：可重用的執行與驗證機制"]
         C["1. 檢查範圍、建立檔案副本<br/>保留原始專案"] --> B["2. 量測未修改版本<br/>建立可比較的基準"]
         B --> L["3. 分派允許的工具<br/>控制讀檔、修改與執行"]

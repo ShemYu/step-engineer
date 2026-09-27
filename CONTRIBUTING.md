@@ -5,7 +5,7 @@ Use Python 3.12 and macOS for the full suite:
 ```sh
 uv sync --frozen --python 3.12
 uv run --frozen pytest -q
-uv run --frozen ruff check src tests tools
+uv run --frozen ruff check src tests tools examples/resource_allocation
 python3 tools/check_public_tree.py
 ```
 

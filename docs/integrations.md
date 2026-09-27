@@ -6,6 +6,13 @@ Step Engineer is a reusable harness specifically for **Step-5-Preview**. Develop
 
 The parent model, authentication, conversation loop, and reasoning settings stay in the host application. A job's `reasoning_effort` controls only Step and defaults to `medium`; Ultra, when available, remains a parent setting.
 
+Before exposing a domain-specific shortcut, define its [task contract](task-brief.md):
+environment, editable policy, objective, hard constraints, permitted tradeoffs,
+and final checks. The [use-case guide](use-cases.md) identifies suitable work.
+The [resource-allocation example](../examples/resource_allocation/README.md)
+shows how a fixed evaluator and an editable policy fit the existing `JobSpec`;
+the CLI and MCP submission schema are unchanged.
+
 ```text
 GPT / Grok / Claude orchestrator
   -> Your CLI, MCP host, or API tool executor

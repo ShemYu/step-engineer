@@ -47,6 +47,13 @@ include = [
     "/examples/batch_aggregation/job.json",
     "/examples/batch_aggregation/README.md",
     "/examples/batch_aggregation/offline_solution.txt",
+    "/examples/resource_allocation/policy.py",
+    "/examples/resource_allocation/evaluator.py",
+    "/examples/resource_allocation/verify.py",
+    "/examples/resource_allocation/bench.py",
+    "/examples/resource_allocation/final_verify.py",
+    "/examples/resource_allocation/job.json",
+    "/examples/resource_allocation/README.md",
 ]
 exclude = ["**/__pycache__/**", "**/.env*", "**/runs/**", "**/experiments/**"]
 
