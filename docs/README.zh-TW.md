@@ -218,6 +218,8 @@ uv run ruff check src tests
 
 測試涵蓋 HTTP mock、harness 狀態、路徑界線、真實 macOS sandbox 與 MCP stdio。測試通過證明框架行為，不能代替特定任務的真實模型評估。
 
+開發選測依循[測試篩選規則](test-selection.zh-TW.md)：減少無效執行，保留故障檢測能力與最終完整 CI。[測試成本案例](test-selection-case-study.md) 記錄交給 Step 的限制、保留的契約與量測方式。
+
 ## Step 官方文件
 
 - [Step 5 Preview：模型能力與限制](https://platform.stepfun.ai/docs/en/guides/models/step-5-preview)
